@@ -40,16 +40,18 @@
 	lw $s0, displayAddress	#$s0 = base address of bitmap display
 	lw $s1, orange	#$s1 = orange colour of doodler
 	lw $s2, skyBlue	#$s2 = blue colour of sky
-	# HOME SCREEN
+	
+	# HOME SCREEN	#set background color with a while loop
 	add $t0, $zero, $zero	#i = 0
 	addi $t1, $zero, 1024	#limit of loop
 HSL_BEGIN:	beq $t0, $t1, HSL_END
 	sw $s2, 0($s0)
 	addi $s0, $s0, 4
 	addi $t0, $t0, 1
-	j HSL_BEGIN
-	
+	j HSL_BEGIN	
 HSL_END:	lw $s0, displayAddress	#s0 = base address of bitmap display
+
+
 	lw $a0,doodler_location	#a2 = doodler's base location
 	add $a1,$zero,$s1	#a1 = orange
 	jal draw_doodler_function
