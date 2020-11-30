@@ -49,19 +49,13 @@ EXIT:	li $v0 10
 #Behaviour: Draws the doodler given the location of the doodler's uppermost block
 draw_doodler_function:	add $t0,$a0,$a2	#a0 = displayAddress
 		sw $a1,0($t0)	#a1 = orange
-		addi $t0, $t0, 120	#a2 = location of doodler's uppermost block
+		addi $t0, $t0, 124	#a2 = location of doodler's uppermost block
 		sw $a1,0($t0)	
 		addi $t0, $t0, 4
 		sw $a1,0($t0)
 		addi $t0, $t0, 4
 		sw $a1,0($t0)
-		addi $t0, $t0, 4
-		sw $a1,0($t0)
-		addi $t0, $t0, 4
-		sw $a1,0($t0)
-		addi $t0, $t0, 112
-		sw $a1,0($t0)
-		addi $t0, $t0, 8
+		addi $t0, $t0, 120
 		sw $a1,0($t0)
 		addi $t0, $t0, 8
 		sw $a1,0($t0)
