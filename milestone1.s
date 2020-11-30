@@ -32,14 +32,24 @@
 
 	displayAddress: .word 0x10008000	#upper left unit of bitmap display
 	bufferAddress: .word 0x10009000	#upper left unit of buffer 
-	doodler_location: .word 0x10008ffc	#must be a multiple of 4, refers to uppermost block of doodler
+	doodler_location: .word 0x10008cc0	#must be a multiple of 4, refers to uppermost block of doodler
 	orange: .word 0xf39c12
 	skyBlue: .word 0x85c1e9
 	green: .word 0x2ecc71
 .text
-	lw $s0, displayAddress	#$t0 = base address of bitmap display
-	lw $s1, orange	#$t1 = orange colour of doodler
-	lw $s2, skyBlue	#$t2 = blue colour of sky
+	lw $s0, displayAddress	#$s0 = base address of bitmap display
+	lw $s1, orange	#$s1 = orange colour of doodler
+	lw $s2, skyBlue	#$s2 = blue colour of sky
+	# HOME SCREEN
+	add $t0, $zero, $zero	#i = 0
+	addi $t1, $zero, 1024	#limit of loop
+HSL_BEGIN:	beq $t0, $t1, HSL_END
+	sw $s2, 0($s0)
+	addi $s0, $s0, 4
+	addi $t0, $t0, 1
+	j HSL_BEGIN
+	
+HSL_END:	lw $s0, displayAddress	#s0 = base address of bitmap display
 	lw $a0,doodler_location	#a2 = doodler's base location
 	add $a1,$zero,$s1	#a1 = orange
 	jal draw_doodler_function
