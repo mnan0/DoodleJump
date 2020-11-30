@@ -30,8 +30,9 @@
 
 .data
 
-	displayAddress: .word 0x10008000
-	doodler_location: .word 48	#must be a multiple of 4, refers to uppermost block of doodler
+	displayAddress: .word 0x10008000	#upper left unit of bitmap display
+	bufferAddress: .word 0x10009000	#upper left unit of buffer 
+	doodler_location: .word 0x10008ffc	#must be a multiple of 4, refers to uppermost block of doodler
 	orange: .word 0xf39c12
 	skyBlue: .word 0x85c1e9
 	green: .word 0x2ecc71
@@ -39,17 +40,16 @@
 	lw $s0, displayAddress	#$t0 = base address of bitmap display
 	lw $s1, orange	#$t1 = orange colour of doodler
 	lw $s2, skyBlue	#$t2 = blue colour of sky
-	add $a0,$zero,$s0	#set arguments: a0 = displayAddress
+	lw $a0,doodler_location	#a2 = doodler's base location
 	add $a1,$zero,$s1	#a1 = orange
-	lw $a2,doodler_location	#a2 = doodler's base location
 	jal draw_doodler_function
 EXIT:	li $v0 10
 	syscall	
 
 #Behaviour: Draws the doodler given the location of the doodler's uppermost block
-draw_doodler_function:	add $t0,$a0,$a2	#a0 = displayAddress
+draw_doodler_function:	add $t0,$zero,$a0	#a0 = location of doodler's uppermost block
 		sw $a1,0($t0)	#a1 = orange
-		addi $t0, $t0, 124	#a2 = location of doodler's uppermost block
+		addi $t0, $t0, 124	
 		sw $a1,0($t0)	
 		addi $t0, $t0, 4
 		sw $a1,0($t0)
