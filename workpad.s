@@ -3,9 +3,9 @@
 	num: .word 34
 	fry: .word 1
 .text
-	lw $t0, num
-	addi $t1, $t1, 1
-	sw $t1, num($t0)
+	la $t0, num
+	lw $t4, 0($t0)
+	
 	
 EXIT: 	li $v0 10
 	syscall
