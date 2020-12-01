@@ -33,12 +33,12 @@
 	displayAddress: .word 0x10008000	#upper left unit of bitmap display
 	bufferAddress: .word 0x10009000	#upper left unit of buffer 
 	doodler_location: .word 0x10008cc0	#must be a multiple of 4, refers to uppermost block of doodler
-	orange: .word 0xf39c12
+	red: .word 0xe74c3c
 	skyBlue: .word 0xaed6f1
 	green: .word 0x2ecc71
 .text
 	lw $s0, displayAddress	#$s0 = base address of bitmap display
-	lw $s1, orange	#$s1 = orange colour of doodler
+	lw $s1, red		#$s1 = red colour of doodler
 	lw $s2, skyBlue	#$s2 = blue colour of sky
 	lw $s3, green	#$s3 = green color of regular platforms
 	
@@ -52,12 +52,20 @@ HSL_BEGIN:	beq $t0, $t1, HSL_END	#end loop when all units have been iterated ove
 	j HSL_BEGIN	
 HSL_END:	lw $s0, displayAddress	#reset $s0 to store displayAddress again
 
-	li $a0, 0x10008eb4
+	li $a0, 268471988	#draw base platform
 	add $a1, $zero, $s3
 	jal draw_regplat_function
 	
-	lw $a0,doodler_location	#a0 = doodler's base location
-	add $a1,$zero,$s1	#a1 = orange
+	li $a0, 268470860	#draw base platform 2
+	add $a1, $zero, $s3
+	jal draw_regplat_function
+	
+	li $a0, 268469908	#draw base platform 3
+	add $a1, $zero, $s3
+	jal draw_regplat_function
+	
+	lw $a0,doodler_location	#draw doodler
+	add $a1,$zero,$s1	
 	jal draw_doodler_function
 EXIT:	li $v0 10
 	syscall	
@@ -66,7 +74,7 @@ EXIT:	li $v0 10
 
 #Behaviour: Draws the doodler given the location of the doodler's uppermost block
 draw_doodler_function:	add $t0,$zero,$a0	#a0 = location of doodler's uppermost block
-		sw $a1,0($t0)	#a1 = orange
+		sw $a1,0($t0)	#a1 = red
 		addi $t0, $t0, 124	
 		sw $a1,0($t0)	
 		addi $t0, $t0, 4
@@ -88,6 +96,7 @@ DRL_BEGIN:		beq $t0,$t1, DRL_END
 		addi $t0, $t0, 1
 		addi $a0, $a0, 4
 		j DRL_BEGIN
+		
 DRL_END:		jr $ra
 				
 
