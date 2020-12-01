@@ -1,4 +1,4 @@
-#####################################################################
+	#####################################################################
 #
 # CSC258H5S Fall 2020 Assembly Final Project
 # University of Toronto, St. George
@@ -41,32 +41,34 @@
 	up_momentum: .word 0		#by default this is 0 (i.e. the doodler falls down)
 				#is greater than 0 after doodler lands on platform
 				#if non-zero and doodler is above a certain y, platforms move down
+	platforms: .space 24		#6 slots for 3 platforms (x,y)
 	
 .text
 	lw $s0, displayAddress	#$s0 = base address of bitmap display
 	lw $s1, red		#$s1 = red colour of doodler
 	lw $s2, skyBlue	#$s2 = blue colour of sky
 	lw $s3, green	#$s3 = green color of regular platforms
+	lw $s4, bufferAddress	#$s4 = base address of buffer display
 	
 	# HOME SCREEN	#set background color, platforms and doodler
 	add $t0, $zero, $zero	#i=0 (background color loop)
 	addi $t1, $zero, 1024	#32x32 display 
 HSL_BEGIN:	beq $t0, $t1, HSL_END	#end loop when all units have been iterated over
-	sw $s2, 0($s0)
-	addi $s0, $s0, 4
+	sw $s2, 0($s4)
+	addi $s4, $s4, 4
 	addi $t0, $t0, 1
 	j HSL_BEGIN	
-HSL_END:	lw $s0, displayAddress	#reset $s0 to store displayAddress again
+HSL_END:	lw $s4, bufferAddress	#reset $s0 to store bufferAddress again
 
-	li $a0, 268471988	#draw base platform
+	li $a0, 268476084	#draw base platform
 	add $a1, $zero, $s3
 	jal draw_regplat_function
 	
-	li $a0, 268470860	#draw base platform 2
+	li $a0, 268474956	#draw base platform 2
 	add $a1, $zero, $s3
 	jal draw_regplat_function
 	
-	li $a0, 268469908	#draw base platform 3
+	li $a0, 268474004	#draw base platform 3
 	add $a1, $zero, $s3
 	jal draw_regplat_function
 	
@@ -74,28 +76,29 @@ HSL_END:	lw $s0, displayAddress	#reset $s0 to store displayAddress again
 	lw $a1,doodler_y
 	lw $a2,red	
 	jal draw_doodler_function
+	jal draw_bitmap_function
+#GL_BEGIN:	# GAME LOOP		
+	#la $t0,doodler_y	#if up_momentum > 0: move doodler up and decrement upward momentum
+	#lw $t1,doodler_y	#else: move doodler down and check for collision with platforms
+	#addi $t1,$t1,-1
+	#sw $t1, 0($t0)
+	#lw $a0,doodler_x
+	#lw $a1,doodler_y
+	#lw $a2,red
+	#jal draw_doodler_function
+	#jal draw_bitmap_function
+	#li $v0, 32		#sleep for 100 ms
+	#li $a0, 100
+	#syscall
+	#j GL_BEGIN
 	
-GL_BEGIN:	
-	la $t0,doodler_y
-	lw $t1,doodler_y
-	addi $t1,$t1,-1
-	sw $t1, 0($t0)
-	lw $a0,doodler_x
-	lw $a1,doodler_y
-	lw $a2,red
-	jal draw_doodler_function
-	li $v0, 32		#sleep for 100 ms
-	li $a0, 100
-	syscall
-	j GL_BEGIN
-	
-GL_END:	li $v0 10
+GL_END:	li $v0, 10
 	syscall	
 
 # FUNCTIONS
 
 #Behaviour: Draws the doodler given the location of the doodler's uppermost block in (x,y) coordinates
-draw_doodler_function:	lw $t0, displayAddress	#a0 = x-value
+draw_doodler_function:	lw $t0, bufferAddress	#a0 = x-value
 		add $t1,$zero,$zero	#a1 = y-value
 		add $t2, $zero,$zero	#a2 = red
 DDRXL_BEGIN:		beq $t1,$a0,DDRXL_END
@@ -134,11 +137,13 @@ DRPL_END:		jr $ra
 #Behaviour: Draws the contents of the buffer on the bitmap display
 draw_bitmap_function:	addi $t0,$zero,0	#$t0 = 0 (loop counter)
 		addi $t1,$zero,1024	#$t1 = 1024 (loop limit)
-		la $t2,displayAddress	#$t2 = display address
-		la $t3,bufferAddress	#$t3 = buffer address
-		lw $t4,bufferAddress	#$t4 = contents of buffer address
+		lw $t2,displayAddress	#$t2 = display address
+		lw $t3,bufferAddress	#$t3 = buffer address
+		lw $t4,0($t3)	#$t4 = contents of buffer address
+		
 DBL_BEGIN:		beq $t0,$t1,DBL_END
 		sw $t4, 0($t2)	#store contents of buffer in corresponding display slot
+		addi $t2, $t2, 4
 		addi $t3,$t3,4	#move buffer address to next slot
 		lw $t4,0($t3)	#update $t4 with contents of next buffer slot
 		addi $t0,$t0,1	#increment counter
