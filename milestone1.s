@@ -41,7 +41,8 @@
 	up_momentum: .word 0		#by default this is 0 (i.e. the doodler falls down)
 				#is greater than 0 after doodler lands on platform
 				#if non-zero and doodler is above a certain y, platforms move down
-	platforms: .space 24		#6 slots for 3 platforms (x,y)
+	normPlat_xy: .space 24		#6 slots for 3 platforms (x,y)
+	normPlat_hex: .space 84		#21 slots for 3 platforms' hexadecimal locations
 	up_threshold: .word 14		#when doodler_y == up_threshold && up_momentum > 0, move platforms
 				#down instead of moving doodler up
 	
@@ -62,19 +63,22 @@ HSL_BEGIN:	beq $t0, $t1, HSL_END	#end loop when all units have been iterated ove
 	j HSL_BEGIN	
 HSL_END:	lw $s4, bufferAddress	#reset $s0 to store bufferAddress again
 
-	li $a0, 268476084	#draw base platform
+	li $a0, 13		#draw base platform
+	li $a1, 29
 	#li $a0, 268471988
-	add $a1, $zero, $s3
+	add $a2, $zero, $s3
 	jal draw_regplat_function
 	
-	li $a0, 268474956	#draw base platform 2
+	li $a0, 5		#draw base platform 2
+	li $a1, 9
 	#li $a0, 268470860
-	add $a1, $zero, $s3
+	add $a2, $zero, $s3
 	jal draw_regplat_function
 	
-	li $a0, 268474004	#draw base platform 3
+	li $a0, 19		#draw base platform 3
+	li $a1, 18
 	#li $a0, 268469908
-	add $a1, $zero, $s3
+	add $a2, $zero, $s3
 	jal draw_regplat_function
 	
 	lw $a0,doodler_x	#draw doodler
@@ -83,6 +87,7 @@ HSL_END:	lw $s4, bufferAddress	#reset $s0 to store bufferAddress again
 	lw $a3,bufferAddress 
 	jal draw_doodler_function
 	jal draw_bitmap_function
+	j GL_END
 GL_BEGIN:	# GAME LOOP		
 	#lw $t0,up_momentum	#$t0 = up_momentum
 	#la $t1,up_momentum	#$t1 = mem address of up_momentum
@@ -128,41 +133,47 @@ GL_END:	li $v0, 10
 # FUNCTIONS
 
 #Behaviour: Draws the doodler given the location of the doodler's uppermost block in (x,y) coordinates
-draw_doodler_function:	add $t0,$zero,$a3	#a0 = x-value
-		add $t1,$zero,$zero	#a1 = y-value
-		add $t2, $zero,$zero	#a2 = color
-DDRXL_BEGIN:		beq $t1,$a0,DDRXL_END	#a3 = address
-		addi $t0,$t0,4
-		addi $t1, $t1,1
-		j DDRXL_BEGIN
-DDRXL_END:		beq $t2, $a1,DDRYL_END
-		addi $t0,$t0,128
-		addi $t2, $t2,1
-		j DDRXL_END
-DDRYL_END:		sw $a2,0($t0)	
-		addi $t0, $t0, 124	
-		sw $a2,0($t0)	
-		addi $t0, $t0, 4
-		sw $a2,0($t0)
-		addi $t0, $t0, 4
-		sw $a2,0($t0)
-		addi $t0, $t0, 120
-		sw $a2,0($t0)
-		addi $t0, $t0, 8
-		sw $a2,0($t0)
+draw_doodler_function:	addi $sp,$sp,-4	#$a0 = x-value	$a2 = color  	   
+		sw $ra,0($sp)	#$a1 = y-value	$a3 = base address -> bitmap or buffer
+		add $t5,$zero,$a2	#store color in a temp variable, since convXY requires address as $a2
+		add $a2,$zero,$a3	#store adddress in $a2
+		jal convXY_function
+		add $a2,$zero,$t5	#restore color to $a2
+		sw $a2,0($v0)	
+		addi $v0, $v0, 124	
+		sw $a2,0($v0)	
+		addi $v0, $v0, 4
+		sw $a2,0($v0)
+		addi $v0, $v0, 4
+		sw $a2,0($v0)
+		addi $v0, $v0, 120
+		sw $a2,0($v0)
+		addi $v0, $v0, 8
+		sw $a2,0($v0)
 		
+		lw $ra,0($sp)	#pop off stack
+		addi $sp,$sp,4	#move stack pointer back down
 		jr $ra
 
 #Behaviour: Draws a normal platform given the location of the platform's leftmost block	
-draw_regplat_function:	addi $t0,$zero,0	#$a0 = location of platform's leftmost block
-		addi $t1, $zero,7	#$a1 = color
-DRPL_BEGIN:		beq $t0,$t1, DRPL_END
-		sw $a1, 0($a0)
+draw_regplat_function:			#$a0 = x-value, $a1 = y-value, $a2 = color
+		addi $sp,$sp,-4	#prepare stack pointer for pushing
+		sw $ra,0($sp)	#push $ra onto stack
+		add $t5,$zero,$a2	#store color in temporary variable
+		lw $a2,bufferAddress
+		jal convXY_function
+		addi $t0,$zero,0	
+		addi $t1, $zero,7
+		add $a2,$zero,$t5
+DRPL_BEGIN:		beq $t0,$t1, DRPL_END	
+		sw $a2, 0($v0)
 		addi $t0, $t0, 1
-		addi $a0, $a0, 4
+		addi $v0, $v0, 4
 		j DRPL_BEGIN
 		
-DRPL_END:		jr $ra
+DRPL_END:		lw $ra,0($sp)	#pop original $ra
+		addi $sp,$sp,4	#restore stack pointer
+		jr $ra		#return no values
 				
 #Behaviour: Draws the contents of the buffer on the bitmap display
 draw_bitmap_function:	addi $t0,$zero,0	#$t0 = 0 (loop counter)
@@ -181,7 +192,20 @@ DBL_BEGIN:		beq $t0,$t1,DBL_END
 
 DBL_END:		jr $ra
 
-
+# Behaviour: Converts (x,y) into hexadecimal address
+convXY_function:	add $t0,$zero,$a2	#a0 = x-value
+		add $t1,$zero,$zero	#a1 = y-value
+		add $t2, $zero,$zero	#a2 = address
+CONVXL_BEGIN:	beq $t1,$a0,CONVXL_END	
+		addi $t0,$t0,4
+		addi $t1, $t1,1
+		j CONVXL_BEGIN
+CONVXL_END:		beq $t2, $a1,CONVYL_END
+		addi $t0,$t0,128
+		addi $t2, $t2,1
+		j CONVXL_END
+CONVYL_END:		add $v0,$zero,$t0	#return $v0 = hex address
+		jr $ra
 
 
 
