@@ -37,11 +37,13 @@
 	bufferAddress: .word 0x10009000	#upper left unit of buffer 
 	doodler_location: .word 0x10008cc0	#must be a multiple of 4, refers to uppermost block of doodler
 	doodler_x: .word 16		#doodler's x coordinate
-	doodler_y: .word 25		#doodler's y coordinate
+	doodler_y: .word 25		#doodler's y coordinate (REMEMBER +Y is lower on display!)
 	up_momentum: .word 0		#by default this is 0 (i.e. the doodler falls down)
 				#is greater than 0 after doodler lands on platform
 				#if non-zero and doodler is above a certain y, platforms move down
 	platforms: .space 24		#6 slots for 3 platforms (x,y)
+	up_threshold: .word 14		#when doodler_y == up_threshold && up_momentum > 0, move platforms
+				#down instead of moving doodler up
 	
 .text
 	lw $s0, displayAddress	#$s0 = base address of bitmap display
@@ -61,36 +63,64 @@ HSL_BEGIN:	beq $t0, $t1, HSL_END	#end loop when all units have been iterated ove
 HSL_END:	lw $s4, bufferAddress	#reset $s0 to store bufferAddress again
 
 	li $a0, 268476084	#draw base platform
+	#li $a0, 268471988
 	add $a1, $zero, $s3
 	jal draw_regplat_function
 	
 	li $a0, 268474956	#draw base platform 2
+	#li $a0, 268470860
 	add $a1, $zero, $s3
 	jal draw_regplat_function
 	
 	li $a0, 268474004	#draw base platform 3
+	#li $a0, 268469908
 	add $a1, $zero, $s3
 	jal draw_regplat_function
 	
 	lw $a0,doodler_x	#draw doodler
 	lw $a1,doodler_y
 	lw $a2,red	
+	lw $a3,bufferAddress 
 	jal draw_doodler_function
 	jal draw_bitmap_function
-#GL_BEGIN:	# GAME LOOP		
-	#la $t0,doodler_y	#if up_momentum > 0: move doodler up and decrement upward momentum
-	#lw $t1,doodler_y	#else: move doodler down and check for collision with platforms
-	#addi $t1,$t1,-1
-	#sw $t1, 0($t0)
-	#lw $a0,doodler_x
-	#lw $a1,doodler_y
-	#lw $a2,red
-	#jal draw_doodler_function
-	#jal draw_bitmap_function
-	#li $v0, 32		#sleep for 100 ms
-	#li $a0, 100
-	#syscall
-	#j GL_BEGIN
+GL_BEGIN:	# GAME LOOP		
+	#lw $t0,up_momentum	#$t0 = up_momentum
+	#la $t1,up_momentum	#$t1 = mem address of up_momentum
+	#beq $t0,$zero,FALL_DOWN	#if up_momentum is zero, fall down and check for collision
+	#addi $t0,$t0,-1	#else,decrement up_momentum and move doodler up
+	#sw $t0,0($t1)	#decrement up_momentum and store it
+	#lw $t0,doodler_y	#increment doodler's y-value
+	#la $t1,doodler_y
+	#addi $t0,$t0,-1	#a lower y-value means a higher row on the display
+	#sw $t0,0($t1)
+	#j UP_MOM_END		#skip the else block (FALL_DOWN)
+		
+FALL_DOWN:#	lw $t0,doodler_y
+	#la $t1,doodler_y
+	#addi $t0,$t0,1	#a higher y-value means a lower row on the display
+
+UP_MOM_END:
+	# LAST PART OF GL --> sleep	
+	li $v0, 32		
+	li $a0, 100
+	syscall
+	# Draw blue at location of doodler and platforms
+	lw $a0,doodler_x
+	lw $a1,doodler_y
+	lw $a2,skyBlue
+	lw $a3,bufferAddress
+	jal draw_doodler_function
+	lw $t0,doodler_y
+	la $t1,doodler_y
+	addi $t0,$t0,-1
+	sw $t0,0($t1)
+	lw $a0,doodler_x
+	lw $a1,doodler_y
+	lw $a2,red
+	lw $a3, bufferAddress
+	jal draw_doodler_function
+	jal draw_bitmap_function
+	j GL_BEGIN
 	
 GL_END:	li $v0, 10
 	syscall	
@@ -98,10 +128,10 @@ GL_END:	li $v0, 10
 # FUNCTIONS
 
 #Behaviour: Draws the doodler given the location of the doodler's uppermost block in (x,y) coordinates
-draw_doodler_function:	lw $t0, bufferAddress	#a0 = x-value
+draw_doodler_function:	add $t0,$zero,$a3	#a0 = x-value
 		add $t1,$zero,$zero	#a1 = y-value
-		add $t2, $zero,$zero	#a2 = red
-DDRXL_BEGIN:		beq $t1,$a0,DDRXL_END
+		add $t2, $zero,$zero	#a2 = color
+DDRXL_BEGIN:		beq $t1,$a0,DDRXL_END	#a3 = address
 		addi $t0,$t0,4
 		addi $t1, $t1,1
 		j DDRXL_BEGIN
@@ -125,7 +155,7 @@ DDRYL_END:		sw $a2,0($t0)
 
 #Behaviour: Draws a normal platform given the location of the platform's leftmost block	
 draw_regplat_function:	addi $t0,$zero,0	#$a0 = location of platform's leftmost block
-		addi $t1, $zero,7	#$a1 = green
+		addi $t1, $zero,7	#$a1 = color
 DRPL_BEGIN:		beq $t0,$t1, DRPL_END
 		sw $a1, 0($a0)
 		addi $t0, $t0, 1
