@@ -43,11 +43,12 @@
 	up_momentum: .word 0		#by default this is 0 (i.e. the doodler falls down)
 				#is greater than 0 after doodler lands on platform
 				#if non-zero and doodler is above a certain y, platforms move down
-	normPlat_xy: .space 24		#6 slots for 3 platforms (x,y)
+	normPlat_xy: .word 13,29,5,9,19,19,0,0		#8 slots for 4 platforms (x,y)
 	normPlat_hex: .word 0:28		#28 slots for 4 platforms' hexadecimal locations (on buffer)
 				#platforms are numbered 0 -> 3
-	up_threshold: .word 8		#when doodler_y == up_threshold && up_momentum > 0, move platforms
+	up_threshold: .word 6		#when doodler_y == up_threshold && up_momentum > 0, move platforms
 				#down instead of moving doodler up
+	
 	
 .text
 	lw $s0, displayAddress	#$s0 = base address of bitmap display
@@ -55,9 +56,7 @@
 	lw $s2, skyBlue	#$s2 = blue colour of sky
 	lw $s3, green	#$s3 = green color of regular platforms
 	lw $s4, bufferAddress	#$s4 = base address of buffer display
-	
-	
-	
+
 	# HOME SCREEN	#set background color, platforms and doodler
 	add $t0, $zero, $zero	#i=0 (background color loop)
 	addi $t1, $zero, 1024	#32x32 display 
@@ -95,28 +94,72 @@ HSL_END:	lw $s4, bufferAddress	#reset $s0 to store bufferAddress again
 	lw $a3,bufferAddress 
 	jal draw_doodler_func
 	jal draw_bitmap_func
-	#j GL_END
+	
 GL_BEGIN:	# GAME LOOP	
-	# LAST PART OF GL --> sleep	
+	#sleep	
 	li $v0, 32		
 	li $a0, 50
-	syscall
-	# Draw blue at location of doodler and platforms
+	syscall	
+	# Draw blue at location of doodler and platforms	
 	lw $a0,doodler_x
 	lw $a1,doodler_y
 	lw $a2,skyBlue
 	lw $a3,bufferAddress
-	jal draw_doodler_func	
-	lw $t0,up_momentum	#$t0 = up_momentum
-	la $t1,up_momentum	#$t1 = mem address of up_momentum
-	beq $t0,$zero,FALL_DOWN	#if up_momentum is zero, fall down and check for collision
-	addi $t0,$t0,-1	#else,decrement up_momentum and move doodler up
-	sw $t0,0($t1)	#decrement up_momentum and store it
-	lw $t0,doodler_y	#increment doodler's y-value
-	la $t1,doodler_y
-	addi $t0,$t0,-1	#a lower y-value means a higher row on the display
+	jal draw_doodler_func
+	la $t0,normPlat_xy
+	lw $a0,0($t0)
+	lw $a1,4($t0)
+	lw $a2,skyBlue
+	add $a3,$zero,$zero
+	jal draw_regplat_func
+	la $t0,normPlat_xy
+	lw $a0,8($t0)
+	lw $a1,12($t0)
+	lw $a2,skyBlue
+	addi $a3,$zero,1
+	jal draw_regplat_func
+	la $t0,normPlat_xy
+	lw $a0,16($t0)
+	lw $a1,20($t0)
+	lw $a2,skyBlue
+	addi $a3,$zero,2
+	jal draw_regplat_func
+	# Check for keyboard input
+	lw $t0,0xffff0000
+	beq $t0,1,key_input
+	j no_key_input
+key_input:	lw $t1,0xffff0004
+	beq $t1,0x6a,move_left
+	beq $t1,0x6b,move_right
+	beq $t1,0x63,shutdown
+	j no_key_input
+move_left:	lw $t0,doodler_x
+	la $t1,doodler_x
+	beq $t0,1,no_key_input		#prevent move left if at edge
+	addi $t0,$t0,-1
 	sw $t0,0($t1)
-	j UP_MOM_END		#skip the else block (FALL_DOWN)
+	j no_key_input
+move_right:	lw $t0,doodler_x
+	la $t1,doodler_x
+	beq $t0,30,no_key_input		#prevent move right if at edge
+	addi $t0,$t0,1
+	sw $t0,0($t1)
+	j no_key_input
+shutdown:	j GL_END
+no_key_input: 	lw $t0,up_momentum	#$t0 = up_momentum
+		la $t1,up_momentum	#$t1 = mem address of up_momentum
+		beq $t0,$zero,FALL_DOWN	#if up_momentum is zero, fall down and check for collision
+		lw $t2,up_threshold
+		lw $t3,doodler_y
+		addi $t0,$t0,-1	#else,decrement up_momentum and move doodler up
+		sw $t0,0($t1)	#decrement up_momentum and store it
+		beq $t2,$t3,PLAT_DOWN	#if up_momentum > 0 and doodler is at threshold, move platforms down
+		
+		lw $t0,doodler_y	#increment doodler's y-value
+		la $t1,doodler_y
+		addi $t0,$t0,-1	#a lower y-value means a higher row on the display
+		sw $t0,0($t1)
+		j DRAW_STUFF		#skip the else block (FALL_DOWN)
 		
 FALL_DOWN:	lw $t0,doodler_y
 	la $t1,doodler_y
@@ -125,25 +168,45 @@ FALL_DOWN:	lw $t0,doodler_y
 	lw $a0, doodler_x
 	lw $a1, doodler_y
 	jal regPlatDet_func
-	beq $v0,1,ADD_REG_MOM
-	beq $v0,0,UP_MOM_END
-ADD_REG_MOM:	lw $t0,up_momentum
+	beq $v0,1,ADD_REG_MOM	#if standing on platform, add momentum
+	beq $v0,0,DRAW_STUFF	#if not standing on platform,draw at one unit lower than before
+ADD_REG_MOM:
+	lw $t0,up_momentum
 	la $t1,up_momentum
-	addi $t0,$t0,13
+	addi $t0,$t0,16
 	sw $t0,0($t1)
-UP_MOM_END:
+	j DRAW_STUFF
+PLAT_DOWN:	# move all platforms down one unit. If platform is at bottom of display (y=31),move to top
+	# of display and randomize x-value
+	jal move_plats_down
 	
-	
-	#lw $t0,doodler_y
-	#la $t1,doodler_y
-	#addi $t0,$t0,-1
-	#sw $t0,0($t1)
+DRAW_STUFF:
+	la $t0,normPlat_xy
+	lw $a0,0($t0)
+	lw $a1,4($t0)
+	lw $a2,green
+	add $a3,$zero,$zero
+	jal draw_regplat_func
+	la $t0,normPlat_xy
+	lw $a0,8($t0)
+	lw $a1,12($t0)
+	lw $a2,green
+	addi $a3,$zero,1
+	jal draw_regplat_func
+	la $t0,normPlat_xy
+	lw $a0,16($t0)
+	lw $a1,20($t0)
+	lw $a2,green
+	addi $a3,$zero,2
+	jal draw_regplat_func
 	lw $a0,doodler_x
 	lw $a1,doodler_y
 	lw $a2,red
 	lw $a3, bufferAddress
 	jal draw_doodler_func
 	jal draw_bitmap_func
+	lw $t0,doodler_y
+	beq $t0,29,GL_END
 	j GL_BEGIN
 	
 GL_END:	li $v0, 10
@@ -174,10 +237,11 @@ draw_doodler_func:	addi $sp,$sp,-4	#$a0 = x-value	$a2 = color
 		addi $sp,$sp,4	#move stack pointer back down
 		jr $ra
 
-#Behaviour: Draws a normal platform given the location of the platform's leftmost block	
+#Behaviour: Draws a normal platform (on the buffer) given the location of the platform's leftmost block	
 draw_regplat_func:			#$a0 = x-value, $a1 = y-value, $a2 = color,$a3 = identity
 		addi $sp,$sp,-4	#prepare stack pointer for pushing
 		sw $ra,0($sp)	#push $ra onto stack
+				
 		add $t5,$zero,$a2	#store color in temporary variable
 		lw $a2,bufferAddress
 		jal convXY_func
@@ -262,11 +326,31 @@ RPD_NO:		li $v0,0		#return 0 iff doodler is not standing on regular platform
 RPD_YES:		li $v0,1		#return 1 iff doodler is standing on regular platform
 		jr $ra		
 		
-		
-
-
-
-
+# Behaviour: Move all platforms down one unit (changing x and y values, not hexadecimal)
+# No drawing is done here
+move_plats_down:	la $t0,normPlat_xy
+		addi $t0,$t0,4
+		add $t4,$zero,$zero
+		addi $t5,$zero,3
+movePlatBegin:	beq $t4,$t5,movePlatDone
+		lw $t1,0($t0)
+		beq $t1,31,PlatToTop
+		addi $t1,$t1,1
+		sw $t1,0($t0)
+		addi $t0,$t0,8
+		addi $t4,$t4,1
+		j movePlatBegin
+PlatToTop:		sw $zero,0($t0)
+		addi $t6,$t0,-4
+		li $v0,42
+		li $a0,0
+		li $a1,25
+		syscall
+		sw $a0,0($t6)
+		addi $t0,$t0,8
+		addi $t4,$t4,1
+		j movePlatBegin
+movePlatDone:	jr $ra
 
 
 
