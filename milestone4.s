@@ -33,6 +33,7 @@
 	red: .word 0xe74c3c
 	skyBlue: .word 0xaed6f1
 	green: .word 0x2ecc71
+	purple: .word 0x5b2c6f
 	displayAddress: .word 0x10008000	#upper left unit of bitmap display
 	bufferAddress: .word 0x10009000	#upper left unit of buffer 
 	doodler_location: .word 0x10008cc0	#must be a multiple of 4, refers to uppermost block of doodler
@@ -48,6 +49,16 @@
 				#platforms are numbered 0 -> 3
 	up_threshold: .word 6		#when doodler_y == up_threshold && up_momentum > 0, move platforms
 				#down instead of moving doodler up
+	ggPos: .word 11,8,12,8,13,8,14,8,11,9,11,10,11,11,11,12,12,12,13,12,14,12,14,11,14,10,13,10,
+	18,8,19,8,20,8,21,8,18,9,18,10,18,11,18,12,19,12,20,12,21,12,21,11,21,10,20,10,
+	16,12,23,12
+	rPlayPos: .word 2,21,2,22,2,23,3,21,4,21,
+	7,21,8,21,9,21,8,20,8,22,8,23,
+	11,21,12,21,13,21,11,22,13,22,11,23,13,23,12,23,
+	16,20,17,20,18,20,18,21,18,22,17,22,16,22,16,21,16,23,16,24,
+	20,20,20,21,20,22,20,23,20,24,21,24,22,24,
+	24,20,25,20,26,20,24,21,26,21,24,22,25,22,26,22,24,23,24,24,26,23,26,24,
+	28,20,28,21,28,22,29,22,30,22,30,21,30,20,29,23,29,24
 	
 	
 .text
@@ -131,7 +142,7 @@ GL_BEGIN:	# GAME LOOP
 key_input:	lw $t1,0xffff0004
 	beq $t1,0x6a,move_left
 	beq $t1,0x6b,move_right
-	beq $t1,0x63,shutdown
+	beq $t1,0x63,endgame
 	j no_key_input
 move_left:	lw $t0,doodler_x
 	la $t1,doodler_x
@@ -145,7 +156,11 @@ move_right:	lw $t0,doodler_x
 	addi $t0,$t0,1
 	sw $t0,0($t1)
 	j no_key_input
-shutdown:	j GL_END
+endgame:	# show gameover
+	jal draw_gg
+infinite:	bne $zero,$zero,no_key_input
+	j infinite
+	#j GL_END
 no_key_input: 	lw $t0,up_momentum	#$t0 = up_momentum
 		la $t1,up_momentum	#$t1 = mem address of up_momentum
 		beq $t0,$zero,FALL_DOWN	#if up_momentum is zero, fall down and check for collision
@@ -206,7 +221,7 @@ DRAW_STUFF:
 	jal draw_doodler_func
 	jal draw_bitmap_func
 	lw $t0,doodler_y
-	beq $t0,29,GL_END
+	beq $t0,29,endgame
 	j GL_BEGIN
 	
 GL_END:	li $v0, 10
@@ -352,7 +367,38 @@ PlatToTop:		sw $zero,0($t0)
 		j movePlatBegin
 movePlatDone:	jr $ra
 
-
+# Behaviour: Write GG on the screen, r to play
+draw_gg:		la $t7,ggPos
+		add $t5,$zero,$zero
+		addi $t6,$zero,32
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+drawGGL:		beq $t5,$t6,drawGGdone
+		lw $a0,0($t7)
+		lw $a1,4($t7)
+		lw $a2,displayAddress
+		jal convXY_func
+		lw $t0,purple
+		sw $t0,0($v0)
+		addi $t7,$t7,8
+		addi $t5,$t5,1
+		j drawGGL
+drawGGdone:		add $t5,$zero,$zero
+		la $t7,rPlayPos
+		addi $t6,$zero,57
+drawRPlay:		beq $t5,$t6,drawRPlaydone
+		lw $a0,0($t7)
+		lw $a1,4($t7)
+		lw $a2,displayAddress
+		jal convXY_func
+		lw $t0,purple
+		sw $t0,0($v0)
+		addi $t7,$t7,8
+		addi $t5,$t5,1
+		j drawRPlay
+drawRPlaydone:	lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
 
 
 
