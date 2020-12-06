@@ -69,7 +69,34 @@
 	
 	
 .text
-	lw $s0, displayAddress	#$s0 = base address of bitmap display
+	j BEGIN
+RESTART:	la $t0,doodler_x
+	li $t1,16
+	sw $t1,0($t0)
+	la $t0,doodler_y
+	li $t1,25
+	sw $t1,0($t0)
+	la $t0,normPlat_xy
+	li $t1,13
+	sw $t1,0($t0)
+	addi $t0,$t0,4
+	li $t1,29
+	sw $t1,0($t0)
+	addi $t0,$t0,4
+	li $t1,5
+	sw $t1,0($t0)
+	addi $t0,$t0,4
+	li $t1,9
+	sw $t1,0($t0)
+	addi $t0,$t0,4
+	li $t1,19
+	sw $t1,0($t0)
+	addi $t0,$t0,4
+	li $t1,19
+	sw $t1,0($t0)
+	
+	
+BEGIN:	lw $s0, displayAddress	#$s0 = base address of bitmap display
 	lw $s1, red		#$s1 = red colour of doodler
 	lw $s2, skyBlue	#$s2 = blue colour of sky
 	lw $s3, green	#$s3 = green color of regular platforms
@@ -83,7 +110,7 @@ HSL_BEGIN:	beq $t0, $t1, HSL_END	#end loop when all units have been iterated ove
 	addi $s4, $s4, 4
 	addi $t0, $t0, 1
 	j HSL_BEGIN	
-HSL_END:	lw $s4, bufferAddress	#reset $s0 to store bufferAddress again
+HSL_END:	lw $s4, bufferAddress	#reset $s4 to store bufferAddress again
 
 	li $a0, 13		#draw base platform
 	li $a1, 29
@@ -175,9 +202,16 @@ shutLBeg:	beq $t0,$t1,shutLend
 	j shutLBeg
 shutLend:
 	jal draw_gg
-#infinite:	bne $zero,$zero,no_key_input
-	#j infinite
-	j GL_END
+shutCollect:	lw $t0,0xffff0000
+	beq $t0,1,shutInput
+	li $v0,32
+	li $a0,100
+	syscall
+	j shutCollect
+shutInput:	lw $t1,0xffff0004
+	beq $t1,0x72,RESTART
+	beq $t1,0x63,GL_END
+	j shutCollect
 no_key_input: 	lw $t0,up_momentum	#$t0 = up_momentum
 		la $t1,up_momentum	#$t1 = mem address of up_momentum
 		beq $t0,$zero,FALL_DOWN	#if up_momentum is zero, fall down and check for collision
