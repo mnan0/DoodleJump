@@ -4,28 +4,24 @@
 	fry: .word 1
 	purple: .word 0x8e44ad
 	black: .word 0x17202a
+	yellow: .word 0xf7dc6f
 	displayAddress: .word 0x10008000
-	ggPos: .word 11,8,12,8,13,8,14,8,11,9,11,10,11,11,11,12,12,12,13,12,14,12,14,11,14,10,13,10,
-	18,8,19,8,20,8,21,8,18,9,18,10,18,11,18,12,19,12,20,12,21,12,21,11,21,10,20,10,
-	16,12,23,12
-	rPlayPos: .word 2,21,2,22,2,23,3,21,4,21,
-	7,21,8,21,9,21,8,20,8,22,8,23,
-	11,21,12,21,13,21,11,22,13,22,11,23,13,23,12,23,
-	16,20,17,20,18,20,18,21,18,22,17,22,16,22,16,21,16,23,16,24,
-	20,20,20,21,20,22,20,23,20,24,21,24,22,24,
-	24,20,25,20,26,20,24,21,26,21,24,22,25,22,26,22,24,23,24,24,26,23,26,24,
-	28,20,28,21,28,22,29,22,30,22,30,21,30,20,29,23,29,24
-	cStopPos: .word 2,27,2,28,2,29,3,27,4,27,3,29,4,29,
-	7,27,8,27,9,27,8,26,8,28,8,29,
-	11,27,12,27,13,27,11,28,13,28,11,29,13,29,12,29,
-	16,26,17,26,18,26,16,27,16,28,17,28,18,28,18,29,18,30,17,30,16,30,
-	20,26,21,26,22,26,21,27,21,28,21,29,21,30,
-	24,26,25,26,26,26,26,27,26,28,26,29,26,30,25,30,24,30,24,29,24,28,24,27,
-	28,26,29,26,30,26,30,27,30,28,29,28,28,28,28,27,28,29,28,30
+	
 	
 	
 .text
-	jal draw_gg
+	li $a0,0
+	li $a1,27
+	lw $a2,displayAddress
+	jal draw_zero
+	li $a0,4
+	li $a1,27
+	lw $a2,displayAddress
+	jal draw_eight
+	li $a0,8
+	li $a1,27
+	lw $a2, displayAddress
+	jal draw_nine
 EXIT: 	li $v0 10
 	syscall
 # Behaviour: Converts (x,y) into hexadecimal, given a base address (buffer or bitmap)
@@ -42,50 +38,297 @@ CONVXL_END:		beq $t2, $a1,CONVYL_END
 		j CONVXL_END
 CONVYL_END:		add $v0,$zero,$t0	#return $v0 = hex address
 		jr $ra
-		
-# Behaviour: Write GG on the screen, r to play
-draw_gg:		la $t7,ggPos
-		add $t5,$zero,$zero
-		addi $t6,$zero,32
+	
+
+			
+# Behaviour: Draw the number 0
+draw_zero:		#$a0 = x, $a1 = y, $a2 = base address
 		addi $sp,$sp,-4
 		sw $ra,0($sp)
-drawGGL:		beq $t5,$t6,drawGGdone
-		lw $a0,0($t7)
-		lw $a1,4($t7)
-		lw $a2,displayAddress
 		jal convXY_func
-		lw $t0,purple
+		lw $t0,yellow
 		sw $t0,0($v0)
-		addi $t7,$t7,8
-		addi $t5,$t5,1
-		j drawGGL
-drawGGdone:		add $t5,$zero,$zero
-		la $t7,rPlayPos
-		addi $t6,$zero,57
-drawRPlay:		beq $t5,$t6,drawRPlaydone
-		lw $a0,0($t7)
-		lw $a1,4($t7)
-		lw $a2,displayAddress
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+# Behaviour: draw the number one
+draw_one:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
 		jal convXY_func
-		lw $t0,purple
+		lw $t0,yellow
+		addi $v0,$v0,8
 		sw $t0,0($v0)
-		addi $t7,$t7,8
-		addi $t5,$t5,1
-		j drawRPlay
-drawRPlaydone:	add $t5,$zero,$zero
-		addi $t6,$zero,61
-		la $t7,cStopPos
-drawCStopbeg:	beq $t5,$t6,drawCStopdone
-		lw $a0,0($t7)
-		lw $a1,4($t7)
-		lw $a2,displayAddress
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draw the number two
+draw_two: 		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
 		jal convXY_func
-		lw $t0,purple
+		lw $t0,yellow
 		sw $t0,0($v0)
-		addi $t7,$t7,8
-		addi $t5,$t5,1
-		j drawCStopbeg
-drawCStopdone:	lw $ra,0($sp)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		lw $ra,0($sp)
 		addi $sp,$sp,4
 		jr $ra
 
+# Behaviour: draw the number three
+draw_three:		#$a0 = x-value, $a1 = y-value, $a2 = displayAddress
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,136
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draw the number four
+draw_four:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+
+# Behaviour: draw the number five
+draw_five:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draws the number six
+draw_six:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-128
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draw the number seven
+draw_seven:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draw the number eight
+draw_eight:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-128
+		sw $t0,0($v0)
+		addi $v0,$v0,-248
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draw the number nine
+draw_nine:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-516
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra

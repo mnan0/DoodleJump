@@ -34,6 +34,7 @@
 	skyBlue: .word 0xaed6f1
 	green: .word 0x2ecc71
 	purple: .word 0x5b2c6f
+	yellow: .word 0xf7dc6f
 	displayAddress: .word 0x10008000	#upper left unit of bitmap display
 	bufferAddress: .word 0x10009000	#upper left unit of buffer 
 	doodler_location: .word 0x10008cc0	#must be a multiple of 4, refers to uppermost block of doodler
@@ -47,8 +48,11 @@
 	normPlat_xy: .word 13,29,5,9,19,19,0,0		#8 slots for 4 platforms (x,y)
 	normPlat_hex: .word 0:28		#28 slots for 4 platforms' hexadecimal locations (on buffer)
 				#platforms are numbered 0 -> 3
-	up_threshold: .word 6		#when doodler_y == up_threshold && up_momentum > 0, move platforms
+	up_threshold: .word 7		#when doodler_y == up_threshold && up_momentum > 0, move platforms
 				#down instead of moving doodler up
+	scoreHund: .word 0		#the player's score can go up to 999
+	scoreTens: .word 0
+	scoreOnes: .word 0 
 	ggPos: .word 11,8,12,8,13,8,14,8,11,9,11,10,11,11,11,12,12,12,13,12,14,12,14,11,14,10,13,10,
 	18,8,19,8,20,8,21,8,18,9,18,10,18,11,18,12,19,12,20,12,21,12,21,11,21,10,20,10,
 	16,12,23,12
@@ -70,7 +74,8 @@
 	
 .text
 	j BEGIN
-RESTART:	la $t0,doodler_x
+RESTART:	# overwrite doodler's and normPlats' xy with original values
+	la $t0,doodler_x	
 	li $t1,16
 	sw $t1,0($t0)
 	la $t0,doodler_y
@@ -94,6 +99,12 @@ RESTART:	la $t0,doodler_x
 	addi $t0,$t0,4
 	li $t1,19
 	sw $t1,0($t0)
+	la $t0,scoreHund
+	sw $zero,0($t0)
+	la $t0,scoreTens
+	sw $zero,0($t0)
+	la $t0,scoreOnes
+	sw $zero,0($t0)
 	
 	
 BEGIN:	lw $s0, displayAddress	#$s0 = base address of bitmap display
@@ -244,8 +255,9 @@ ADD_REG_MOM:
 	j DRAW_STUFF
 PLAT_DOWN:	# move all platforms down one unit. If platform is at bottom of display (y=31),move to top
 	# of display and randomize x-value
+	# every time platforms move down, add one to the score
 	jal move_plats_down
-	
+	jal addOnePt
 DRAW_STUFF:
 	la $t0,normPlat_xy
 	lw $a0,0($t0)
@@ -465,5 +477,377 @@ drawCStopdone:	lw $ra,0($sp)
 		addi $sp,$sp,4
 		jr $ra
 
+# Behaviour: Draw the number 0
+draw_zero:		#$a0 = x, $a1 = y, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+# Behaviour: draw the number one
+draw_one:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draw the number two
+draw_two: 		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
 
+# Behaviour: draw the number three
+draw_three:		#$a0 = x-value, $a1 = y-value, $a2 = displayAddress
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,136
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draw the number four
+draw_four:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
 
+# Behaviour: draw the number five
+draw_five:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draws the number six
+draw_six:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-128
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draw the number seven
+draw_seven:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draw the number eight
+draw_eight:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-4
+		sw $t0,0($v0)
+		addi $v0,$v0,-128
+		sw $t0,0($v0)
+		addi $v0,$v0,-248
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draw the number nine
+draw_nine:		#$a0 = x-value, $a1 = y-value, $a2 = base address
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		jal convXY_func
+		lw $t0,yellow
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,8
+		sw $t0,0($v0)
+		addi $v0,$v0,120
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,4
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,128
+		sw $t0,0($v0)
+		addi $v0,$v0,-516
+		sw $t0,0($v0)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+
+# Behaviour: add one point to the score
+addOnePt:		# no arguments
+		lw $t0,scoreHund
+		lw $t1,scoreTens
+		lw $t2,scoreOnes
+		#if the ones digit is nine, increment the tens digit and set the ones digit to 0
+		beq $t2,9,incTens
+		#if the ones digit is NOT nine, increment the ones digit and END 
+		addi $t2,$t2,1
+		la $t3,scoreOnes
+		sw $t2,0($t3)
+		j addDone
+incTens:		#the ones digit == 9 so set it to 0
+		add $t2,$zero,$zero
+		la $t3,scoreOnes
+		sw $t2,0($t3)
+		# if the tens digit is nine, increment the hundreds digit and set the tens digit to 0
+		beq $t1,9,incHund
+		# if the tens digit is NOT nine, increment the tens digit and END
+		addi $t1,$t1,1
+		la $t3,scoreTens
+		sw $t1,0($t3)
+		j addDone
+incHund:		#the tens digit == 9 so set it to 0
+		add $t1,$zero,$zero
+		la $t3,scoreTens
+		sw $t1,0($t3)
+		# if the hundreds digit is nine, DON'T CHANGE THE SCORE
+		beq $t0,9,addDone
+		# if the hundreds digit is not nine, increment the hundreds digit and end
+		add $t0,$t0,1
+		la $t3,scoreHund
+		sw $t0,0($t3)
+		j addDone
+addDone:		jr $ra	
+
+# Behaviour:	Draw the score stuff on the buffer address
+draw_Score:		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		lw $t5,scoreHund
+		li $a0,0
+		li $a1,27
+		lw $a2,bufferAddress
+		beq $t5,0,draw_zero
+		beq $t5,1,draw_one
+		beq $t5,2,draw_two
+		beq $t5,3,draw_three
+		beq $t5,4,draw_four
+		beq $t5,5,draw_five
+		beq $t5,6,draw_six
+		beq $t5,7,draw_seven
+		beq $t5,8,draw_eight
+		beq $t5,9,draw_nine
+		li $a0,4
+		li $a1,27
+		lw $a2,bufferAddress
+		beq $t5,0,draw_zero
+		beq $t5,1,draw_one
+		beq $t5,2,draw_two
+		beq $t5,3,draw_three
+		beq $t5,4,draw_four
+		beq $t5,5,draw_five
+		beq $t5,6,draw_six
+		beq $t5,7,draw_seven
+		beq $t5,8,draw_eight
+		beq $t5,9,draw_nine
+		li $a0,8
+		li $a1,27
+		lw $a2,bufferAddress
+		beq $t5,0,draw_zero
+		beq $t5,1,draw_one
+		beq $t5,2,draw_two
+		beq $t5,3,draw_three
+		beq $t5,4,draw_four
+		beq $t5,5,draw_five
+		beq $t5,6,draw_six
+		beq $t5,7,draw_seven
+		beq $t5,8,draw_eight
+		beq $t5,9,draw_nine
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
