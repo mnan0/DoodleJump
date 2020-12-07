@@ -84,7 +84,7 @@ RESTART:	# overwrite doodler's and normPlats' xy with original values
 	la $t0,normPlat_xy
 	li $t1,13
 	sw $t1,0($t0)
-	addi $t0,$t0,4
+	addi $t0,$t0,4 
 	li $t1,29
 	sw $t1,0($t0)
 	addi $t0,$t0,4
