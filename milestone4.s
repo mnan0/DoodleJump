@@ -180,8 +180,31 @@ GL_BEGIN:	# GAME LOOP
 	lw $a2,skyBlue
 	addi $a3,$zero,2
 	jal draw_regplat_func
+	add $t0,$zero,$zero
+	addi $t1,$zero,11
+	addi $t2,$zero,0x10009d80
+	addi $t3,$zero,0x10009e00
+	addi $t4,$zero,0x10009e80
+	addi $t5,$zero,0x10009f00
+	addi $t6,$zero,0x10009f80
+	#add $t7,$zero,$zero
+	lw $t8,skyBlue
+sEraseBeg:	beq $t0,$t1,scoreEraseEnd
+	sw $t8,0($t2)
+	sw $t8,0($t3)
+	sw $t8,0($t4)
+	sw $t8,0($t5)
+	sw $t8,0($t6)
+	addi $t2,$t2,4
+	addi $t3,$t3,4
+	addi $t4,$t4,4
+	addi $t5,$t5,4
+	addi $t6,$t6,4
+	addi $t0,$t0,1
+	j sEraseBeg
+	
 	# Check for keyboard input
-	lw $t0,0xffff0000
+scoreEraseEnd:	lw $t0,0xffff0000
 	beq $t0,1,key_input
 	j no_key_input
 key_input:	lw $t1,0xffff0004
@@ -282,6 +305,18 @@ DRAW_STUFF:
 	lw $a2,red
 	lw $a3, bufferAddress
 	jal draw_doodler_func
+	li $a0,0
+	li $a1,27
+	lw $a3,scoreHund
+	jal draw_SNum
+	li $a0,4
+	li $a1,27
+	lw $a3,scoreTens
+	jal draw_SNum
+	li $a0,8
+	li $a1,27
+	lw $a3,scoreOnes
+	jal draw_SNum
 	jal draw_bitmap_func
 	lw $t0,doodler_y
 	beq $t0,29,endgame
@@ -806,48 +841,40 @@ incHund:		#the tens digit == 9 so set it to 0
 addDone:		jr $ra	
 
 # Behaviour:	Draw the score stuff on the buffer address
-draw_Score:		addi $sp,$sp,-4
+draw_SNum:		addi $sp,$sp,-4
 		sw $ra,0($sp)
-		lw $t5,scoreHund
-		li $a0,0
-		li $a1,27
+		add $t5,$zero,$a3
 		lw $a2,bufferAddress
-		beq $t5,0,draw_zero
-		beq $t5,1,draw_one
-		beq $t5,2,draw_two
-		beq $t5,3,draw_three
-		beq $t5,4,draw_four
-		beq $t5,5,draw_five
-		beq $t5,6,draw_six
-		beq $t5,7,draw_seven
-		beq $t5,8,draw_eight
-		beq $t5,9,draw_nine
-		li $a0,4
-		li $a1,27
-		lw $a2,bufferAddress
-		beq $t5,0,draw_zero
-		beq $t5,1,draw_one
-		beq $t5,2,draw_two
-		beq $t5,3,draw_three
-		beq $t5,4,draw_four
-		beq $t5,5,draw_five
-		beq $t5,6,draw_six
-		beq $t5,7,draw_seven
-		beq $t5,8,draw_eight
-		beq $t5,9,draw_nine
-		li $a0,8
-		li $a1,27
-		lw $a2,bufferAddress
-		beq $t5,0,draw_zero
-		beq $t5,1,draw_one
-		beq $t5,2,draw_two
-		beq $t5,3,draw_three
-		beq $t5,4,draw_four
-		beq $t5,5,draw_five
-		beq $t5,6,draw_six
-		beq $t5,7,draw_seven
-		beq $t5,8,draw_eight
-		beq $t5,9,draw_nine
-		lw $ra,0($sp)
+		beq $t5,0,drawzero
+		beq $t5,1,drawone
+		beq $t5,2,drawtwo
+		beq $t5,3,drawthree
+		beq $t5,4,drawfour
+		beq $t5,5,drawfive
+		beq $t5,6,drawsix
+		beq $t5,7,drawseven
+		beq $t5,8,draweight
+		beq $t5,9,drawnine
+drawzero:		jal draw_zero
+		j SNumEnd
+drawone:		jal draw_one
+		j SNumEnd
+drawtwo:		jal draw_two	
+		j SNumEnd
+drawthree:		jal draw_three
+		j SNumEnd
+drawfour:		jal draw_four
+		j SNumEnd
+drawfive:		jal draw_five
+		j SNumEnd
+drawsix:		jal draw_six
+		j SNumEnd
+drawseven:		jal draw_seven
+		j SNumEnd
+draweight:		jal draw_eight
+		j SNumEnd
+drawnine:		jal draw_nine
+		j SNumEnd
+SNumEnd:		lw $ra,0($sp)
 		addi $sp,$sp,4
 		jr $ra
