@@ -35,6 +35,7 @@
 	green: .word 0x2ecc71
 	purple: .word 0x5b2c6f
 	yellow: .word 0xf7dc6f
+	stoneGrey: .word 0x85929e
 	displayAddress: .word 0x10008000	#upper left unit of bitmap display
 	bufferAddress: .word 0x10009000	#upper left unit of buffer 
 	doodler_location: .word 0x10008cc0	#must be a multiple of 4, refers to uppermost block of doodler
@@ -45,6 +46,7 @@
 	up_momentum: .word 0		#by default this is 0 (i.e. the doodler falls down)
 				#is greater than 0 after doodler lands on platform
 				#if non-zero and doodler is above a certain y, platforms move down
+	#down_momentum: .word 0
 	normPlat_xy: .word 13,29,5,9,19,19,0,0		#8 slots for 4 platforms (x,y)
 	normPlat_hex: .word 0:28		#28 slots for 4 platforms' hexadecimal locations (on buffer)
 				#platforms are numbered 0 -> 3
@@ -53,9 +55,13 @@
 	scoreHund: .word 0		#the player's score can go up to 999
 	scoreTens: .word 0
 	scoreOnes: .word 0 
-	ggPos: .word 11,8,12,8,13,8,14,8,11,9,11,10,11,11,11,12,12,12,13,12,14,12,14,11,14,10,13,10,
-	18,8,19,8,20,8,21,8,18,9,18,10,18,11,18,12,19,12,20,12,21,12,21,11,21,10,20,10,
-	16,12,23,12
+	#acceleration: .word 3		#magnitude of acceleration
+	spring_exists: .word 0 
+	spring_xy: .word 0,0
+	spring_hex: .word 0,0,0		#spring is 3x1 rectangle
+	ggPos: .word 11,2,12,2,13,2,14,2,11,3,11,4,11,5,11,6,12,6,13,6,14,6,14,5,14,4,13,4,
+	18,2,19,2,20,2,21,2,18,3,18,4,18,5,18,6,19,6,20,6,21,6,21,5,21,4,20,4,
+	16,6,23,6
 	rPlayPos: .word 2,21,2,22,2,23,3,21,4,21,
 	7,21,8,21,9,21,8,20,8,22,8,23,
 	11,21,12,21,13,21,11,22,13,22,11,23,13,23,12,23,
@@ -105,6 +111,12 @@ RESTART:	# overwrite doodler's and normPlats' xy with original values
 	sw $zero,0($t0)
 	la $t0,scoreOnes
 	sw $zero,0($t0)
+	la $t0,spring_exists
+	sw $zero,0($t0)
+	la $t0,spring_hex
+	sw $zero,0($t0)
+	sw $zero,4($t0)
+	sw $zero,8($t0)
 	
 	
 BEGIN:	lw $s0, displayAddress	#$s0 = base address of bitmap display
@@ -156,13 +168,17 @@ GL_BEGIN:	# GAME LOOP
 	li $v0, 32		
 	li $a0, 50
 	syscall	
-	# Draw blue at location of doodler and platforms	
+	# Draw blue at location of doodler and platforms and spring	
 	lw $a0,doodler_x
 	lw $a1,doodler_y
 	lw $a2,skyBlue
 	lw $a3,bufferAddress
 	jal draw_doodler_func
-	la $t0,normPlat_xy
+	lw $t0,spring_exists
+	beq $t0,0,noOWSpring
+	lw $a0,skyBlue
+	jal draw_spring
+noOWSpring:	la $t0,normPlat_xy
 	lw $a0,0($t0)
 	lw $a1,4($t0)
 	lw $a2,skyBlue
@@ -189,6 +205,7 @@ GL_BEGIN:	# GAME LOOP
 	addi $t6,$zero,0x10009f80
 	#add $t7,$zero,$zero
 	lw $t8,skyBlue
+	
 sEraseBeg:	beq $t0,$t1,scoreEraseEnd
 	sw $t8,0($t2)
 	sw $t8,0($t3)
@@ -235,6 +252,7 @@ shutLBeg:	beq $t0,$t1,shutLend
 	addi $s0,$s0,4
 	j shutLBeg
 shutLend:
+	jal draw_EndScore
 	jal draw_gg
 shutCollect:	lw $t0,0xffff0000
 	beq $t0,1,shutInput
@@ -268,14 +286,25 @@ FALL_DOWN:	lw $t0,doodler_y
 	lw $a0, doodler_x
 	lw $a1, doodler_y
 	jal regPlatDet_func
+	# increase down_momentum
+	# increase acceleration
 	beq $v0,1,ADD_REG_MOM	#if standing on platform, add momentum
+	lw $a0, doodler_x
+	lw $a1, doodler_y
+	jal regSpringDet_func
+	beq $v0,1,ADD_SPRING_MOM
 	beq $v0,0,DRAW_STUFF	#if not standing on platform,draw at one unit lower than before
 ADD_REG_MOM:
 	lw $t0,up_momentum
 	la $t1,up_momentum
-	addi $t0,$t0,16
+	addi $t0,$t0,15
 	sw $t0,0($t1)
 	j DRAW_STUFF
+ADD_SPRING_MOM:	lw $t0,up_momentum
+		la $t1,up_momentum
+		addi $t0,$t0,32
+		sw $t0,0($t1)
+		j DRAW_STUFF
 PLAT_DOWN:	# move all platforms down one unit. If platform is at bottom of display (y=31),move to top
 	# of display and randomize x-value
 	# every time platforms move down, add one to the score
@@ -300,6 +329,11 @@ DRAW_STUFF:
 	lw $a2,green
 	addi $a3,$zero,2
 	jal draw_regplat_func
+	lw $t0,spring_exists
+	beq $t0,0,dontDrawSpring
+	lw $a0,stoneGrey
+	jal draw_spring
+dontDrawSpring:	
 	lw $a0,doodler_x
 	lw $a1,doodler_y
 	lw $a2,red
@@ -307,14 +341,17 @@ DRAW_STUFF:
 	jal draw_doodler_func
 	li $a0,0
 	li $a1,27
+	lw $a2,bufferAddress
 	lw $a3,scoreHund
 	jal draw_SNum
 	li $a0,4
 	li $a1,27
+	lw $a2,bufferAddress
 	lw $a3,scoreTens
 	jal draw_SNum
 	li $a0,8
 	li $a1,27
+	lw $a2,bufferAddress
 	lw $a3,scoreOnes
 	jal draw_SNum
 	jal draw_bitmap_func
@@ -396,6 +433,15 @@ DBL_BEGIN:		beq $t0,$t1,DBL_END
 
 DBL_END:		jr $ra
 
+# Behaviour: Draws a spring (assume spring_exists == 1)
+# $a0 = colour
+draw_spring:		
+		lw $t1,spring_hex
+		sw $a0,0($t1)
+		sw $a0,4($t1)
+		sw $a0,8($t1)
+		jr $ra 
+
 # Behaviour: Converts (x,y) into hexadecimal, given a base address (buffer or bitmap)
 convXY_func:		add $t0,$zero,$a2	#a0 = x-value
 		add $t1,$zero,$zero	#a1 = y-value
@@ -410,7 +456,23 @@ CONVXL_END:		beq $t2, $a1,CONVYL_END
 		j CONVXL_END
 CONVYL_END:		add $v0,$zero,$t0	#return $v0 = hex address
 		jr $ra
-
+# Behaviour: convert hexadecimal to xy coordinates
+# $a0 = hex
+# $a1 = base hex address (bitmap or buffer)	
+convHex_func:	sub $t0,$a0,$a1
+		add $t1,$zero,$zero	#x
+		add $t2,$zero,$zero	#y
+convHexLBeg:		beq $t0,$zero,convHexEnd
+		bge $t0,128,convHexAddY
+		add $t1,$t1,1
+		sub $t0,$t0,4
+		j convHexLBeg
+convHexAddY:		add $t2,$t2,1
+		sub $t0,$t0,128
+		j convHexLBeg	
+convHexEnd:		add $v0,$zero,$t1
+		add $v1,$zero,$t2
+		jr $ra
 # Behaviour: Given doodler's x and y, determine if doodler is on top of a regular platform
 # $a0 = x-value	$a1 = y-value
 regPlatDet_func:	addi $sp,$sp,-4	
@@ -439,20 +501,91 @@ RPD_NO:		li $v0,0		#return 0 iff doodler is not standing on regular platform
 RPD_YES:		li $v0,1		#return 1 iff doodler is standing on regular platform
 		jr $ra		
 		
+# Behaviour: Given doodler's x and y, checks if doodler is standing on spring
+# $a0 = x-value, $a1 = y-value
+regSpringDet_func:	addi $sp,$sp,-4
+		sw $ra,0($sp)
+		lw $a2, bufferAddress
+		jal convXY_func
+		addi $t0,$v0,-4
+		addi $t1,$v0,4
+		addi $t0,$t0,384	#$t0 = unit on buffer directly below doodler's left foot
+		addi $t1,$t1,384	#$t1 = unit on buffer directly below doodler's right foot
+		add $t2,$zero,$zero
+		addi $t3,$zero,3
+		lw $t4,spring_hex
+springDetLBeg:	beq $t2,$t3,springDetNo
+		beq $t0,$t4,springDetYes
+		beq $t1,$t4,springDetYes
+		addi $t4,$t4,4
+		addi $t2,$t2,1
+		j springDetLBeg
+springDetNo:		li $v0,0
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+springDetYes:	li $v0,1
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
 # Behaviour: Move all platforms down one unit (changing x and y values, not hexadecimal)
+# also moves spring and rocket down
 # No drawing is done here
-move_plats_down:	la $t0,normPlat_xy
-		addi $t0,$t0,4
+move_plats_down:	
 		add $t4,$zero,$zero
 		addi $t5,$zero,3
-movePlatBegin:	beq $t4,$t5,movePlatDone
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		# move spring down
+		lw $t2,spring_exists
+		beq $t2,0,movePlatBegin
+		lw $a0,spring_hex
+		blt $a0,0x10009000,springManDown
+		lw $a1,bufferAddress
+		jal convHex_func
+		
+		# if spring y == 30, "erase" by setting spring_exists to 0
+		# spring_hex still has info, but we won't be reading from it
+		# otherwise, move it down
+		beq $v1,30,eraseSpring
+		addi $a1,$v1,1
+		add $a0,$v0,$zero
+		lw $a2, bufferAddress
+		jal convXY_func
+		la $t2,spring_hex
+		sw $v0,0($t2)
+		addi $v0,$v0,4
+		addi $t2,$t2,4
+		sw $v0,0($t2)
+		addi $v0,$v0,4
+		addi $t2,$t2,4
+		sw $v0,0($t2)
+		la $t0,normPlat_xy
+		j movePlatBegin
+springManDown:	la $t0,spring_hex
+		add $a0,$a0,128
+		sw $a0,0($t0)
+		add $t0,$t0,4
+		lw $a0,0($t0)
+		add $a0,$a0,128
+		sw $a0,0($t0)
+		add $t0,$t0,4
+		lw $a0,0($t0)
+		add $a0,$a0,128
+		sw $a0,0($t0)
+		j movePlatBegin
+eraseSpring:		la $t2,spring_exists
+		sw $zero,0($t2)
+movePlatBegin:	la $t0,normPlat_xy
+		addi $t0,$t0,4
+movePlatBegL:	beq $t4,$t5,movePlatDone
 		lw $t1,0($t0)
 		beq $t1,31,PlatToTop
 		addi $t1,$t1,1
 		sw $t1,0($t0)
-		addi $t0,$t0,8
 		addi $t4,$t4,1
-		j movePlatBegin
+		addi $t0,$t0,8
+		j movePlatBegL
 PlatToTop:		sw $zero,0($t0)
 		addi $t6,$t0,-4
 		li $v0,42
@@ -460,10 +593,51 @@ PlatToTop:		sw $zero,0($t0)
 		li $a1,25
 		syscall
 		sw $a0,0($t6)
-		addi $t0,$t0,8
+		lw $t7,spring_exists
+		beq $t7,1,incPlatLabs
+		li $v0,42
+		li $a0,0
+		li $a1,10
+		syscall
+		# There is an 8% chance of a spring on the next platform
+		beq $a0,0,setSpringExists
+		j incPlatLabs
+setSpringExists:	# set spring_exists to 1
+		la $t2,spring_exists
+		addi $t3,$zero,1
+		sw $t3,0($t2)
+		# determine offset of spring location from leftmost platform unit
+		addi $sp,$sp,-4
+		sw $t4,0($sp)
+		addi $sp,$sp,-4
+		sw $t5,0($sp)
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		lw $a0,0($t6)
+		lw $a1,4($t6)
+		lw $a2,bufferAddress
+		jal convXY_func
+		add $t2,$zero,$v0
+		li $v0,42
+		li $a0,0
+		li $a1,4
+		syscall
+		add $a1,$zero,$a0
+		add $a0,$zero,$t2
+		lw $t0,0($sp)
+		addi $sp,$sp,4
+		lw $t5,0($sp)
+		addi $sp,$sp,4
+		lw $t4,0($sp)
+		addi $sp,$sp,4
+		# store spring location in memory
+		jal gen_spring	
+incPlatLabs:		addi $t0,$t0,8
 		addi $t4,$t4,1
-		j movePlatBegin
-movePlatDone:	jr $ra
+		j movePlatBegL
+movePlatDone:	lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
 
 		
 # Behaviour: Write GG on the screen, r to play
@@ -844,7 +1018,7 @@ addDone:		jr $ra
 draw_SNum:		addi $sp,$sp,-4
 		sw $ra,0($sp)
 		add $t5,$zero,$a3
-		lw $a2,bufferAddress
+		#lw $a2,bufferAddress
 		beq $t5,0,drawzero
 		beq $t5,1,drawone
 		beq $t5,2,drawtwo
@@ -878,3 +1052,50 @@ drawnine:		jal draw_nine
 SNumEnd:		lw $ra,0($sp)
 		addi $sp,$sp,4
 		jr $ra
+
+# Behaviour: draw the end score
+draw_EndScore:	addi $sp,$sp,-4
+		sw $ra,0($sp)
+		li $a0,10
+		li $a1,10
+		lw $a2,displayAddress
+		lw $a3,scoreHund
+		jal draw_SNum
+		li $a0,14
+		li $a1,10
+		lw $a2,displayAddress
+		lw $a3,scoreTens
+		jal draw_SNum
+		li $a0,18
+		li $a1,10
+		lw $a2, displayAddress
+		lw $a3, scoreOnes
+		jal draw_SNum
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+
+# Behaviour: generate a spring (hex values)
+# $a0 = hex value of leftmost unit
+# $a1 = horizontal offset
+gen_spring:		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		#la $t1,spring_xy
+		la $t2,spring_hex
+		add $t6,$zero,$zero
+springOffBeg:	beq $t6,$a1,springOffDone
+		addi $a0,$a0,4
+		addi $t6,$t6,1
+		j springOffBeg
+springOffDone:	add $a0,$a0,-128
+		sw $a0,0($t2)
+		addi $t2,$t2,4
+		addi $a0,$a0,4
+		sw $a0,0($t2)
+		addi $t2,$t2,4
+		addi $a0,$a0,4
+		sw $a0,0($t2)
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+
