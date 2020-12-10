@@ -14,17 +14,17 @@
 #
 # Which milestone is reached in this submission?
 # (See the assignment handout for descriptions of the milestones)
-# - Milestone 1/2/3/4/5 (choose the one the applies)
+# - Milestone 5 (choose the one the applies)
 #
 # Which approved additional features have been implemented?
 # (See the assignment handout for the list of additional features)
-# 1. (fill in the feature, if any)
-# 2. (fill in the feature, if any)
-# 3. (fill in the feature, if any)
-# ... (add more if necessary)
+# 1. in-game notifications/congratulations
+# 2. background music and sound effects	
+# 3. springs and rocket suit
+# 
 #
 # Any additional information that the TA needs to know:
-# - (write here, if any)
+# none
 #
 #####################################################################
 
@@ -1977,70 +1977,70 @@ play_background:	# 1x C+ chord
 middle_c:		li $a0,60
 		li $a1,200
 		li $a2,0
-		li $a3,80
+		li $a3,100
 		li $v0,31
 		syscall
 		j checkResetMusic
 middle_e:		li $a0,64
 		li $a1,200
 		li $a2,0
-		li $a3,80
+		li $a3,100
 		li $v0,31
 		syscall
 		j checkResetMusic
 middle_g:		li $a0,67
 		li $a1,200
 		li $a2,0
-		li $a3,80
+		li $a3,100
 		li $v0,31
 		syscall
 		j checkResetMusic
 middle_f:		li $a0,65
 		li $a1,200
 		li $a2,0
-		li $a3,80
+		li $a3,100
 		li $v0,31
 		syscall
 		j checkResetMusic
 middle_a:		li $a0,69
 		li $a1,200
 		li $a2,0
-		li $a3,80
+		li $a3,100
 		li $v0,31
 		syscall
 		j checkResetMusic
 middle_b:		li $a0,71
 		li $a1,200
 		li $a2,0
-		li $a3,80
+		li $a3,100
 		li $v0,31
 		syscall
 		j checkResetMusic
 high_c:		li $a0,72
 		li $a1,200
 		li $a2,0
-		li $a3,80
+		li $a3,100
 		li $v0,31
 		syscall
 		j checkResetMusic
 high_d:		li $a0,74
 		li $a1,200
 		li $a2,0
-		li $a3,80
+		li $a3,100
 		li $v0,31
 		syscall
 		j checkResetMusic
 high_e_flat:		li $a0,75
 		li $a1,200
 		li $a2,0
-		li $a3,80
+		li $a3,100
 		li $v0,31
 		syscall
 		j checkResetMusic
 high_g:		li $a0,79
 		li $a1,200
 		li $a2,0
-		li $a3,80
+		li $a3,100
 		li $v0,31
 		syscall
 		j checkResetMusic
