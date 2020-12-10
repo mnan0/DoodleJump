@@ -120,6 +120,8 @@
 	22,12,22,13,22,14,21,14,20,14,20,15,22,15,20,16,21,16,22,16, #10
 	24,12,24,13,24,14,24,16 #4
 	
+	music_count: .word 0
+	
 .text
 	j BEGIN
 RESTART:	# overwrite doodler's and normPlats' xy with original values
@@ -175,6 +177,8 @@ resetRockLB:	beq $t0,$t1,resetRockLE
 resetRockLE:la $t0,notif_count
 	sw $zero,0($t0)
 	la $t0,curr_notif
+	sw $zero,0($t0)
+	la $t0,music_count
 	sw $zero,0($t0)
 BEGIN:	lw $s0, displayAddress	#$s0 = base address of bitmap display
 	lw $s1, red		#$s1 = red colour of doodler
@@ -340,6 +344,7 @@ no_key_input: 	# if rocket_exists == 1 && rocket_enabled == 0, check for doodler
 		beq $t0,1,noAstronaut
 		jal check_touch_rocket
 		beq $v0,0,noAstronaut
+		jal rocket_sound
 		la $t0,up_momentum
 		li $t1,60
 		sw $t1,0($t0)
@@ -418,8 +423,9 @@ checkSprDetF:	lw $a0, doodler_x
 ADD_REG_MOM:
 	lw $t0,up_momentum
 	la $t1,up_momentum
-	addi $t0,$t0,15
+	addi $t0,$t0,17
 	sw $t0,0($t1)
+	jal jump_sound
 	j DRAW_STUFF
 ADD_SPRING_MOM:	lw $t0,up_momentum
 		la $t1,up_momentum
@@ -428,6 +434,7 @@ ADD_SPRING_MOM:	lw $t0,up_momentum
 		lw $t0,notif_count
 		bgt $t0,0,DRAW_STUFF
 		jal new_notif
+		jal spring_sound
 		j DRAW_STUFF
 PLAT_DOWN:	# move all platforms down one unit. If platform is at bottom of display (y=31),move to top
 	# of display and randomize x-value
@@ -446,6 +453,7 @@ PLAT_DOWN:	# move all platforms down one unit. If platform is at bottom of displ
 	# the score is 250
 	# set current notification and notif_count
 	jal new_notif
+	jal milestone_sound
 	j DRAW_STUFF
 checkFiveHund:	lw $t0,scoreHund
 	bne $t0,5,checkSevenFifty
@@ -455,6 +463,7 @@ checkFiveHund:	lw $t0,scoreHund
 	bne $t0,0,checkSevenFifty
 	# the score is 500
 	jal new_notif
+	jal milestone_sound
 	j DRAW_STUFF
 checkSevenFifty:	lw $t0,scoreHund
 	bne $t0,7,DRAW_STUFF
@@ -464,6 +473,7 @@ checkSevenFifty:	lw $t0,scoreHund
 	bne $t0,0,DRAW_STUFF
 	# the score is 750
 	jal new_notif
+	jal milestone_sound
 	j DRAW_STUFF
 	
 DRAW_STUFF:
@@ -530,6 +540,7 @@ dontDrawSpring:
 	jal draw_bitmap_func
 	lw $t0,doodler_y
 	beq $t0,29,endgame
+	jal play_background
 	j GL_BEGIN
 	
 GL_END:	li $v0, 10
@@ -1855,3 +1866,189 @@ new_notif:		# push $ra, $t0, $t1, $a0, $a1 to stack
 		addi $sp,$sp,4
 		jr $ra
 		
+# Behaviour: play jump sound
+jump_sound:		li $a0,60
+		li $a1,250
+		li $a2,85
+		li $a3,60
+		li $v0,31
+		syscall
+		jr $ra
+		
+# Behaviour: play spring sound
+spring_sound:	li $a0,40
+		li $a1,250
+		li $a2,38
+		li $a3,100
+		li $v0,31
+		syscall
+		jr $ra
+
+# Behaviour: play rocket sound
+rocket_sound:	li $a0,60
+		li $a1,2800
+		li $a2,126
+		li $a3,100
+		li $v0,31
+		syscall
+		jr $ra
+		
+# Behaviour: play notification (milestone) sound
+milestone_sound:	li $a0,60
+		li $a1,1000
+		li $a2,9
+		li $a3,140
+		li $v0,31
+		syscall
+		jr $ra
+		
+# Behaviour: play background note (if any) and increment music counter)
+play_background:	# 1x C+ chord
+		lw $t0,music_count
+		beq $t0,0,middle_c
+		beq $t0,5,middle_e
+		beq $t0,10,middle_g
+		beq $t0,15,high_c
+		
+		# 1x Fmin7 chord
+		beq $t0,20,middle_f
+		beq $t0,25,middle_a
+		beq $t0,30,high_c
+		beq $t0,35,high_e_flat
+		
+		# 2x C+ chord
+		beq $t0,40,middle_c
+		beq $t0,45,middle_e
+		beq $t0,50,middle_g
+		beq $t0,55,high_c
+		beq $t0,60,middle_c
+		beq $t0,65,middle_e
+		beq $t0,70,middle_g
+		beq $t0,75,high_c
+		
+		# 2x Fmin7 chord
+		beq $t0,80,middle_f
+		beq $t0,85,middle_a
+		beq $t0,90,high_c
+		beq $t0,95,high_e_flat
+		beq $t0,100,middle_f
+		beq $t0,105,middle_a
+		beq $t0,110,high_c
+		beq $t0,115,high_e_flat
+		
+		# 2x C+ chord
+		beq $t0,120,middle_c
+		beq $t0,125,middle_e
+		beq $t0,130,middle_g
+		beq $t0,135,high_c
+		beq $t0,140,middle_c
+		beq $t0,145,middle_e
+		beq $t0,150,middle_g
+		beq $t0,155,high_c
+		
+		# 1x G+ chord
+		beq $t0,160,middle_g
+		beq $t0,165,middle_b
+		beq $t0,170,high_d
+		beq $t0,175,high_g
+		
+		
+		# 1x F7min chord
+		beq $t0,180,middle_f
+		beq $t0,185,middle_a
+		beq $t0,190,high_c
+		beq $t0,195,high_e_flat
+		
+		
+		# 2x C+ chord
+		beq $t0,200,middle_c
+		beq $t0,205,middle_e
+		beq $t0,210,middle_g
+		beq $t0,215,high_c
+		beq $t0,220,middle_c
+		beq $t0,225,middle_e
+		beq $t0,230,middle_g
+		beq $t0,235,high_c
+		
+		
+		
+		
+		j checkResetMusic
+middle_c:		li $a0,60
+		li $a1,200
+		li $a2,0
+		li $a3,80
+		li $v0,31
+		syscall
+		j checkResetMusic
+middle_e:		li $a0,64
+		li $a1,200
+		li $a2,0
+		li $a3,80
+		li $v0,31
+		syscall
+		j checkResetMusic
+middle_g:		li $a0,67
+		li $a1,200
+		li $a2,0
+		li $a3,80
+		li $v0,31
+		syscall
+		j checkResetMusic
+middle_f:		li $a0,65
+		li $a1,200
+		li $a2,0
+		li $a3,80
+		li $v0,31
+		syscall
+		j checkResetMusic
+middle_a:		li $a0,69
+		li $a1,200
+		li $a2,0
+		li $a3,80
+		li $v0,31
+		syscall
+		j checkResetMusic
+middle_b:		li $a0,71
+		li $a1,200
+		li $a2,0
+		li $a3,80
+		li $v0,31
+		syscall
+		j checkResetMusic
+high_c:		li $a0,72
+		li $a1,200
+		li $a2,0
+		li $a3,80
+		li $v0,31
+		syscall
+		j checkResetMusic
+high_d:		li $a0,74
+		li $a1,200
+		li $a2,0
+		li $a3,80
+		li $v0,31
+		syscall
+		j checkResetMusic
+high_e_flat:		li $a0,75
+		li $a1,200
+		li $a2,0
+		li $a3,80
+		li $v0,31
+		syscall
+		j checkResetMusic
+high_g:		li $a0,79
+		li $a1,200
+		li $a2,0
+		li $a3,80
+		li $v0,31
+		syscall
+		j checkResetMusic
+checkResetMusic:	la $t1,music_count
+		beq $t0,239,resetMusicLoop
+		add $t0,$t0,1
+		sw $t0,0($t1)
+		j playMusicEnd
+resetMusicLoop:	sw $zero,0($t1)		
+		
+playMusicEnd:	jr $ra
