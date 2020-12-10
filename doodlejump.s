@@ -314,7 +314,12 @@ move_right:	lw $t0,doodler_x
 	sw $t0,0($t1)
 	j no_key_input
 endgame:	# show gameover
-	
+	li $a0,60
+	li $a1,3000
+	li $a2,0
+	li $a3,100
+	li $v0,31
+	syscall
 	add $t0,$zero,$zero
 	addi $t1,$zero,1024
 	lw $t2,skyBlue
