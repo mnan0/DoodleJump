@@ -36,6 +36,8 @@
 	purple: .word 0x5b2c6f
 	yellow: .word 0xf7dc6f
 	stoneGrey: .word 0x85929e
+	white: .word 0xfdfefe
+	black: .word 0x1c2833
 	displayAddress: .word 0x10008000	#upper left unit of bitmap display
 	bufferAddress: .word 0x10009000	#upper left unit of buffer 
 	doodler_location: .word 0x10008cc0	#must be a multiple of 4, refers to uppermost block of doodler
@@ -59,6 +61,12 @@
 	spring_exists: .word 0 
 	spring_xy: .word 0,0
 	spring_hex: .word 0,0,0		#spring is 3x1 rectangle
+	rocket_exists: .word 0
+	rocket_enabled: .word 0
+	# rocket has 24 units
+	# top 19 are white, bottom 5 are black
+	rocket_hex: .word 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	rocket_centre: .word 0		# quick reference to doodler tip	
 	ggPos: .word 11,2,12,2,13,2,14,2,11,3,11,4,11,5,11,6,12,6,13,6,14,6,14,5,14,4,13,4,
 	18,2,19,2,20,2,21,2,18,3,18,4,18,5,18,6,19,6,20,6,21,6,21,5,21,4,20,4,
 	16,6,23,6
@@ -117,7 +125,7 @@ RESTART:	# overwrite doodler's and normPlats' xy with original values
 	sw $zero,0($t0)
 	sw $zero,4($t0)
 	sw $zero,8($t0)
-	
+	# add reset for rocket here!!!!!
 	
 BEGIN:	lw $s0, displayAddress	#$s0 = base address of bitmap display
 	lw $s1, red		#$s1 = red colour of doodler
@@ -174,7 +182,11 @@ GL_BEGIN:	# GAME LOOP
 	lw $a2,skyBlue
 	lw $a3,bufferAddress
 	jal draw_doodler_func
-	lw $t0,spring_exists
+	lw $t0,rocket_exists
+	beq $t0,0,checkSpringBlue
+	li $a0,0
+	jal draw_rocket
+checkSpringBlue:	lw $t0,spring_exists
 	beq $t0,0,noOWSpring
 	lw $a0,skyBlue
 	jal draw_spring
@@ -225,6 +237,8 @@ scoreEraseEnd:	lw $t0,0xffff0000
 	beq $t0,1,key_input
 	j no_key_input
 key_input:	lw $t1,0xffff0004
+	lw $t0,rocket_enabled
+	beq $t0,1,no_key_input
 	beq $t1,0x6a,move_left
 	beq $t1,0x6b,move_right
 	beq $t1,0x63,endgame
@@ -264,19 +278,60 @@ shutInput:	lw $t1,0xffff0004
 	beq $t1,0x72,RESTART
 	beq $t1,0x63,GL_END
 	j shutCollect
-no_key_input: 	lw $t0,up_momentum	#$t0 = up_momentum
+no_key_input: 	# if rocket_exists == 1 && rocket_enabled == 0, check for doodler touching rocket
+		# if doodler touches rocket, set up_momentum == 64, set rocket_enabled == 1, set xy to rocket_centre
+		lw $t0,rocket_exists
+		beq $t0,0,noAstronaut
+		lw $t0,rocket_enabled
+		beq $t0,1,noAstronaut
+		jal check_touch_rocket
+		beq $v0,0,noAstronaut
+		la $t0,up_momentum
+		li $t1,64
+		sw $t1,0($t0)
+		la $t0,rocket_enabled
+		li $t1,1
+		sw $t1,0($t0)
+		# set doodler_x and doodler_y to centre of rocket ship
+		la $t0,rocket_hex
+		lw $t1,24($t0)
+		add $a0,$zero,$t1
+		lw $a1,bufferAddress
+		jal convHex_func
+		la $t0,doodler_x
+		la $t1,doodler_y
+		sw $v0,0($t0)
+		sw $v1,0($t1)
+		j DRAW_STUFF
+noAstronaut:		lw $t0,up_momentum	#$t0 = up_momentum
 		la $t1,up_momentum	#$t1 = mem address of up_momentum
+		
 		beq $t0,$zero,FALL_DOWN	#if up_momentum is zero, fall down and check for collision
 		lw $t2,up_threshold
 		lw $t3,doodler_y
 		addi $t0,$t0,-1	#else,decrement up_momentum and move doodler up
 		sw $t0,0($t1)	#decrement up_momentum and store it
-		beq $t2,$t3,PLAT_DOWN	#if up_momentum > 0 and doodler is at threshold, move platforms down
+		bge $t2,$t3,PLAT_DOWN	#if up_momentum > 0 and doodler is at threshold, move platforms down
 		
-		lw $t0,doodler_y	#increment doodler's y-value
+		lw $t0,doodler_y	#decrement doodler's y-value
 		la $t1,doodler_y
 		addi $t0,$t0,-1	#a lower y-value means a higher row on the display
 		sw $t0,0($t1)
+		
+		# if rocket_enabled == 1, then move rocket_hex up as well
+		lw $t0,rocket_enabled
+		beq $t0,0,DRAW_STUFF
+		li $t0,0
+		li $t1,24
+		la $t2,rocket_hex
+rocketUpBeg:		beq $t0,$t1,rocketUpEnd
+		lw $t3,0($t2)
+		addi $t3,$t3,-128
+		sw $t3,0($t2)
+		addi $t2,$t2,4
+		addi $t0,$t0,1
+		j rocketUpBeg
+rocketUpEnd:
 		j DRAW_STUFF		#skip the else block (FALL_DOWN)
 		
 FALL_DOWN:	lw $t0,doodler_y
@@ -289,7 +344,16 @@ FALL_DOWN:	lw $t0,doodler_y
 	# increase down_momentum
 	# increase acceleration
 	beq $v0,1,ADD_REG_MOM	#if standing on platform, add momentum
-	lw $a0, doodler_x
+	# if rocket_exists == 1 && rocket_enabled == 1 then set both to 0
+	lw $t0,rocket_exists
+	lw $t1,rocket_enabled
+	beq $t0,0,checkSprDetF
+	beq $t1,0,checkSprDetF
+	la $t0,rocket_exists
+	la $t1,rocket_enabled
+	sw $zero,0($t0)
+	sw $zero,0($t1)
+checkSprDetF:	lw $a0, doodler_x
 	lw $a1, doodler_y
 	jal regSpringDet_func
 	beq $v0,1,ADD_SPRING_MOM
@@ -329,6 +393,11 @@ DRAW_STUFF:
 	lw $a2,green
 	addi $a3,$zero,2
 	jal draw_regplat_func
+	lw $t0,rocket_exists
+	beq $t0,0,checkSpringDrawReg
+	li $a0,1
+	jal draw_rocket
+checkSpringDrawReg:
 	lw $t0,spring_exists
 	beq $t0,0,dontDrawSpring
 	lw $a0,stoneGrey
@@ -534,12 +603,24 @@ springDetYes:	li $v0,1
 move_plats_down:	
 		add $t4,$zero,$zero
 		addi $t5,$zero,3
+		# push $ra to stack
 		addi $sp,$sp,-4
 		sw $ra,0($sp)
-		# move spring down
-		lw $t2,spring_exists
+		# if rocket exists, move it down but first check if it should be erased
+		# if rocket doesn't exist, check if spring exists
+		# if rocket exists AND enabled, don't move it
+		lw $t2,rocket_exists
+		beq $t2,0,checkSprExists
+		lw $t2,rocket_enabled
+		beq $t2,1,checkSprExists
+		jal move_rocket_down
+		# if spring exists, move it down
+		# if spring doesn't exist, move platforms down
+checkSprExists:	lw $t2,spring_exists
 		beq $t2,0,movePlatBegin
 		lw $a0,spring_hex
+		# if spring is outside buffer, use special manual method to move down
+		# since convHex involves address - buffer, and spring not on buffer implies address < buffer
 		blt $a0,0x10009000,springManDown
 		lw $a1,bufferAddress
 		jal convHex_func
@@ -576,6 +657,7 @@ springManDown:	la $t0,spring_hex
 		j movePlatBegin
 eraseSpring:		la $t2,spring_exists
 		sw $zero,0($t2)
+		j movePlatBegin
 movePlatBegin:	la $t0,normPlat_xy
 		addi $t0,$t0,4
 movePlatBegL:	beq $t4,$t5,movePlatDone
@@ -586,27 +668,41 @@ movePlatBegL:	beq $t4,$t5,movePlatDone
 		addi $t4,$t4,1
 		addi $t0,$t0,8
 		j movePlatBegL
-PlatToTop:		sw $zero,0($t0)
+PlatToTop:		# $t0 = address of y-value of curr platform
+		sw $zero,0($t0)
+		# $t6 = address of x-value of curr platform
 		addi $t6,$t0,-4
+		# generate random x-value for top platform
 		li $v0,42
 		li $a0,0
 		li $a1,25
 		syscall
+		# store random x-value for top platform
 		sw $a0,0($t6)
+		# if either a spring or rocket exists, don't generate a new spring
 		lw $t7,spring_exists
 		beq $t7,1,incPlatLabs
+		lw $t7,rocket_exists
+		beq $t7,1,incPlatLabs
+		# There is an 10% chance of a spring on the next platform
 		li $v0,42
 		li $a0,0
 		li $a1,10
 		syscall
-		# There is an 8% chance of a spring on the next platform
-		beq $a0,0,setSpringExists
+		beq $a0,50,setSpringExists
+		# There is a 5% chance of a rocket on the next platform
+		li $v0,42
+		li $a0,0
+		li $a1,3
+		syscall
+		beq $a0,0,setRocketExists
 		j incPlatLabs
 setSpringExists:	# set spring_exists to 1
 		la $t2,spring_exists
 		addi $t3,$zero,1
 		sw $t3,0($t2)
 		# determine offset of spring location from leftmost platform unit
+		# push $t4, $t5,$t0 onto stack before convXY_func is called
 		addi $sp,$sp,-4
 		sw $t4,0($sp)
 		addi $sp,$sp,-4
@@ -617,6 +713,7 @@ setSpringExists:	# set spring_exists to 1
 		lw $a1,4($t6)
 		lw $a2,bufferAddress
 		jal convXY_func
+		# $t2 = hex
 		add $t2,$zero,$v0
 		li $v0,42
 		li $a0,0
@@ -631,7 +728,19 @@ setSpringExists:	# set spring_exists to 1
 		lw $t4,0($sp)
 		addi $sp,$sp,4
 		# store spring location in memory
-		jal gen_spring	
+		jal gen_spring
+		j incPlatLabs
+setRocketExists:	# set rocket_exists == 1
+		la $t1,rocket_exists
+		addi $t2,$zero,1	
+		sw $t2,0($t1)
+		lw $a0,0($t6)
+		lw $a1,4($t6)
+		lw $a2,bufferAddress
+		# get hex value of leftmost unit of curr platform
+		jal convXY_func
+		add $a0,$zero,$v0
+		jal gen_rocket
 incPlatLabs:		addi $t0,$t0,8
 		addi $t4,$t4,1
 		j movePlatBegL
@@ -1075,8 +1184,8 @@ draw_EndScore:	addi $sp,$sp,-4
 		addi $sp,$sp,4
 		jr $ra
 
-# Behaviour: generate a spring (hex values)
-# $a0 = hex value of leftmost unit
+# Behaviour: generate a spring (hex values) and store in memory
+# $a0 = hex value of leftmost unit of platform
 # $a1 = horizontal offset
 gen_spring:		addi $sp,$sp,-4
 		sw $ra,0($sp)
@@ -1099,3 +1208,262 @@ springOffDone:	add $a0,$a0,-128
 		addi $sp,$sp,4
 		jr $ra
 
+# Behaviour: Given leftmost unit (in hex) of associated platform, generate rocket's hex locations and store in memory
+# First nineteen must be highest, last five must be lowest
+# $a0 = hex value of leftmost unit (in hex) of associated platform
+gen_rocket:		# push $ra, $t0, $t4, $t5, $t6 onto stack
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		addi $sp,$sp,-4
+		sw $t4,0($sp)
+		addi $sp,$sp,-4
+		sw $t5,0($sp)
+		addi $sp,$sp,-4
+		sw $t6,0($sp)
+		
+		la $t1,rocket_hex
+		addi $a0,$a0,4
+		addi $a0,$a0,-768
+		addi $a0,$a0,8
+		# store top of rocket in first slot
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,124
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,116
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,112
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,112
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,112
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		addi $t1,$t1,4
+		addi $a0,$a0,4
+		sw $a0,0($t1)
+		# pull $t6,$t5,$t4,$t0,$ra off the stack
+		lw $t6,0($sp)
+		addi $sp,$sp,4
+		lw $t5,0($sp)
+		addi $sp,$sp,4
+		lw $t4,0($sp)
+		addi $sp,$sp,4
+		lw $t0,0($sp)
+		addi $sp,$sp,4
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draws the rocket given colour code (0 == skyBlue, 1 == white and black)
+# $a0 = colour code
+draw_rocket:		# push $ra, $t0, $t1, $t2, $t3, $t5 on stack
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		addi $sp,$sp,-4
+		sw $t1,0($sp)
+		addi $sp,$sp,-4
+		sw $t2,0($sp)
+		addi $sp,$sp,-4
+		sw $t3,0($sp)
+		addi $sp,$sp,-4
+		sw $t5,0($sp)
+		la $t2,rocket_hex
+		beq $a0,0,rocketBlue
+		li $t0,0
+		li $t1,19
+		lw $t5,white
+rocketWhiteLB:	beq $t0,$t1,rocketWhiteLE
+		lw $t3,0($t2)
+		blt $t3,0x10009000,rockWhiteSkip
+		sw $t5,0($t3)
+rockWhiteSkip:	addi $t2,$t2,4
+		addi $t0,$t0,1
+		j rocketWhiteLB
+rocketWhiteLE:	li $t0,0
+		li $t1,5
+		lw $t5,black
+rocketBlackLB:	beq $t0,$t1,rocketPaintEnd
+		lw $t3,0($t2)
+		sw $t5,0($t3)
+		addi $t2,$t2,4
+		addi $t0,$t0,1
+		j rocketBlackLB
+rocketBlue:		li $t0,0
+		li $t1,24
+		lw $t5,skyBlue
+rocketBlueLB:	beq $t0,$t1,rocketPaintEnd
+		lw $t3,0($t2)
+		blt $t3,0x10009000,rockBlueSkip
+		sw $t5,0($t3)
+rockBlueSkip:	addi $t2,$t2,4
+		addi $t0,$t0,1
+		j rocketBlueLB	
+rocketPaintEnd:	# pull $t5,$t3,$t2,$t1,$t0,$ra off stack
+		lw $t5,0($sp)
+		addi $sp,$sp,4
+		lw $t3,0($sp)
+		addi $sp,$sp,4
+		lw $t2,0($sp)
+		addi $sp,$sp,4
+		lw $t1,0($sp)
+		addi $sp,$sp,4
+		lw $t0,0($sp)
+		addi $sp,$sp,4
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: moves rocket down
+# no parameters
+move_rocket_down:	# add 128 to each rocket_hex entry
+		# if top hex > 0x10009000 && top y == 25 (i.e. resting on platform that has y == 31), erase
+		# push $ra, $t0, $t1, $t2,$t3 on stack
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		addi $sp,$sp,-4
+		sw $t1,0($sp)
+		addi $sp,$sp,-4
+		sw $t2,0($sp)
+		addi $sp,$sp,-4
+		sw $t3,0($sp)
+		
+		lw $t2,rocket_hex
+		bgt $t2,0x10009000,checkRocketBottom
+		j moveDownRocket
+checkRocketBottom:	add $a0,$t2,$zero
+		lw $a1,bufferAddress
+		jal convHex_func
+		beq $v1,25,eraseRocket
+		j moveDownRocket
+eraseRocket:		la $t2,rocket_exists
+		sw $zero,0($t2)
+		j moveRocketEnd
+moveDownRocket:	
+		add $t0,$zero,$zero
+		addi $t1,$zero,24
+		la $t3,rocket_hex
+moveRocketBeg:	beq $t0,$t1,moveRocketEnd
+		lw $t2,0($t3)
+		addi $t2,$t2,128
+		sw $t2,0($t3)
+		addi $t3,$t3,4
+		addi $t0,$t0,1
+		j moveRocketBeg
+moveRocketEnd:	# pull $t3, $t2, $t1, $t0, $ra off stack
+		lw $t3,0($sp)
+		addi $sp,$sp,4
+		lw $t2,0($sp)
+		addi $sp,$sp,4
+		lw $t1,0($sp)
+		addi $sp,$sp,4
+		lw $t0,0($sp)
+		addi $sp,$sp,4
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: check if doodler's tip is touching rocket
+check_touch_rocket:	# push $ra, $t0, $t1, $t2, $t3 on stack
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		addi $sp,$sp,-4
+		sw $t1,0($sp)
+		addi $sp,$sp,-4
+		sw $t2,0($sp)
+		addi $sp,$sp,-4
+		sw $t3,0($sp)
+		
+		lw $a0,doodler_x
+		lw $a1,doodler_y
+		lw $a2,bufferAddress
+		jal convXY_func
+		# see if doodler's tip's hex is the same as any of rocket
+		li $t0,0
+		li $t1,24
+		la $t2,rocket_hex
+		
+touchRocketLB:	beq $t0,$t1,noTouchRocket
+		lw $t3,0($t2)
+		beq $v0,$t3,yesTouchRocket
+		addi $t2,$t2,4
+		addi $t0,$t0,1
+		j touchRocketLB
+noTouchRocket:	li $v0,0
+		j pullStackCheckRocket
+yesTouchRocket:	li $v0,1
+		j pullStackCheckRocket
+pullStackCheckRocket: 	# pull $t3, $t2, $t1, $t0, $ra from stack
+		lw $t3,0($sp)
+		addi $sp,$sp,4
+		lw $t2,0($sp)
+		addi $sp,$sp,4
+		lw $t1,0($sp)
+		addi $sp,$sp,4
+		lw $t0,0($sp)
+		addi $sp,$sp,4
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
