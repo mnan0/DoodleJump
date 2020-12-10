@@ -67,9 +67,14 @@
 	# top 19 are white, bottom 5 are black
 	rocket_hex: .word 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 	rocket_centre: .word 0		# quick reference to doodler tip	
+	
+	notif_count: .word 0		# how many loop cycles remaining of notif display
+	curr_notif: .word 0		# 0 <= currNotif <= 4
+	
 	ggPos: .word 11,2,12,2,13,2,14,2,11,3,11,4,11,5,11,6,12,6,13,6,14,6,14,5,14,4,13,4,
 	18,2,19,2,20,2,21,2,18,3,18,4,18,5,18,6,19,6,20,6,21,6,21,5,21,4,20,4,
 	16,6,23,6
+	
 	rPlayPos: .word 2,21,2,22,2,23,3,21,4,21,
 	7,21,8,21,9,21,8,20,8,22,8,23,
 	11,21,12,21,13,21,11,22,13,22,11,23,13,23,12,23,
@@ -77,6 +82,7 @@
 	20,20,20,21,20,22,20,23,20,24,21,24,22,24,
 	24,20,25,20,26,20,24,21,26,21,24,22,25,22,26,22,24,23,24,24,26,23,26,24,
 	28,20,28,21,28,22,29,22,30,22,30,21,30,20,29,23,29,24
+	
 	cStopPos: .word 2,27,2,28,2,29,3,27,4,27,3,29,4,29,
 	7,27,8,27,9,27,8,26,8,28,8,29,
 	11,27,12,27,13,27,11,28,13,28,11,29,13,29,12,29,
@@ -85,6 +91,34 @@
 	24,26,25,26,26,26,26,27,26,28,26,29,26,30,25,30,24,30,24,29,24,28,24,27,
 	28,26,29,26,30,26,30,27,30,28,29,28,28,28,28,27,28,29,28,30
 	
+	poggersPos: .word 9,12,10,12,11,12,9,13,11,13,9,14,10,14,11,14,9,15,9,16, #10
+	13,12,14,12,15,12,13,13,15,13,13,14,15,14,13,15,15,15,13,16,14,16,15,16, #12
+	17,12,18,12,19,12,20,12,17,13,17,14,17,15,17,16,18,16,19,16,20,16,20,15,20,14,19,14, #14
+	22,12,22,13,22,14,22,16 #4
+	
+	epicPos: .word 8,12,9,12,10,12,8,13,8,14,9,14,10,14,8,15,8,16,9,16,10,16, #11
+	12,12,13,12,14,12,12,13,14,13,12,14,13,14,14,14,12,15,12,16, #10
+	16,12,16,13,16,14,16,15,16,16, #5
+	18,12,19,12,20,12,18,13,18,14,18,15,18,16,19,16,20,16, #9
+	22,12,22,13,22,14,22,16 #4
+	
+	coolPos: .word 8,12,9,12,10,12,8,13,8,14,8,15,8,16,9,16,10,16, #9
+	12,12,13,12,14,12,12,13,14,13,12,14,14,14,12,15,14,15,12,16,13,16,14,16, #12
+	16,12,17,12,18,12,16,13,18,13,16,14,18,14,16,15,18,15,16,16,17,16,18,16, #12
+	20,12,20,13,20,14,20,15,20,16,21,16,22,16, #7
+	24,12,24,13,24,14,24,16 #4
+	
+	nicePos: .word 7,12,7,13,7,14,7,15,7,16,8,13,9,14,10,15,10,16,10,14,10,13,10,12, #12
+	12,12,12,13,12,14,12,15,12,16, #5
+	14,12,15,12,16,12,14,13,14,14,14,15,14,16,15,16,16,16, #9
+	18,12,19,12,20,12,18,13,18,14,19,14,20,14,18,15,18,16,19,16,20,16, #11
+	22,12,22,13,22,14,22,16 #4
+	
+	goodPos: .word 7,12,8,12,9,12,10,12,7,13,7,14,7,15,7,16,8,16,9,16,10,16,10,15,10,14,9,14, #14
+	12,12,13,12,14,12,12,13,14,13,12,14,14,14,12,15,14,15,12,16,13,16,14,16, #12
+	16,12,17,12,18,12,16,13,18,13,16,14,18,14,16,15,18,15,16,16,17,16,18,16 #12
+	22,12,22,13,22,14,21,14,20,14,20,15,22,15,20,16,21,16,22,16, #10
+	24,12,24,13,24,14,24,16 #4
 	
 .text
 	j BEGIN
@@ -126,7 +160,22 @@ RESTART:	# overwrite doodler's and normPlats' xy with original values
 	sw $zero,4($t0)
 	sw $zero,8($t0)
 	# add reset for rocket here!!!!!
-	
+	la $t0,rocket_exists
+	sw $zero,0($t0)
+	la $t0,rocket_enabled
+	sw $zero,0($t0)
+	li $t0,0
+	li $t1,24
+	la $t2,rocket_hex
+resetRockLB:	beq $t0,$t1,resetRockLE
+	sw $zero,0($t2)
+	addi $t2,$t2,4
+	addi $t0,$t0,1
+	j resetRockLB
+resetRockLE:la $t0,notif_count
+	sw $zero,0($t0)
+	la $t0,curr_notif
+	sw $zero,0($t0)
 BEGIN:	lw $s0, displayAddress	#$s0 = base address of bitmap display
 	lw $s1, red		#$s1 = red colour of doodler
 	lw $s2, skyBlue	#$s2 = blue colour of sky
@@ -176,13 +225,18 @@ GL_BEGIN:	# GAME LOOP
 	li $v0, 32		
 	li $a0, 50
 	syscall	
-	# Draw blue at location of doodler and platforms and spring	
+	# Draw blue at location of doodler and platforms and spring and rocket
 	lw $a0,doodler_x
 	lw $a1,doodler_y
 	lw $a2,skyBlue
 	lw $a3,bufferAddress
 	jal draw_doodler_func
-	lw $t0,rocket_exists
+	lw $t0,notif_count
+	bgt $t0,0,paintNotifBlue
+	j checkRocketBlue
+paintNotifBlue:	lw $a0,skyBlue
+		jal draw_curr_notif
+checkRocketBlue:	lw $t0,rocket_exists
 	beq $t0,0,checkSpringBlue
 	li $a0,0
 	jal draw_rocket
@@ -287,7 +341,7 @@ no_key_input: 	# if rocket_exists == 1 && rocket_enabled == 0, check for doodler
 		jal check_touch_rocket
 		beq $v0,0,noAstronaut
 		la $t0,up_momentum
-		li $t1,64
+		li $t1,60
 		sw $t1,0($t0)
 		la $t0,rocket_enabled
 		li $t1,1
@@ -302,6 +356,9 @@ no_key_input: 	# if rocket_exists == 1 && rocket_enabled == 0, check for doodler
 		la $t1,doodler_y
 		sw $v0,0($t0)
 		sw $v1,0($t1)
+		lw $t0,notif_count
+		bgt $t0,0,DRAW_STUFF
+		jal new_notif
 		j DRAW_STUFF
 noAstronaut:		lw $t0,up_momentum	#$t0 = up_momentum
 		la $t1,up_momentum	#$t1 = mem address of up_momentum
@@ -368,14 +425,61 @@ ADD_SPRING_MOM:	lw $t0,up_momentum
 		la $t1,up_momentum
 		addi $t0,$t0,32
 		sw $t0,0($t1)
+		lw $t0,notif_count
+		bgt $t0,0,DRAW_STUFF
+		jal new_notif
 		j DRAW_STUFF
 PLAT_DOWN:	# move all platforms down one unit. If platform is at bottom of display (y=31),move to top
 	# of display and randomize x-value
 	# every time platforms move down, add one to the score
 	jal move_plats_down
 	jal addOnePt
+	# if score is 50 or 500 or 750, give notification UNLESS if notif_count is non-zero
+	lw $t0,notif_count
+	bgt $t0,0,DRAW_STUFF
+	lw $t0,scoreHund
+	bne $t0,0,checkFiveHund
+	lw $t0,scoreTens
+	bne $t0,5,checkFiveHund
+	lw $t0,scoreOnes
+	bne $t0,0,checkFiveHund
+	# the score is 250
+	# set current notification and notif_count
+	jal new_notif
+	j DRAW_STUFF
+checkFiveHund:	lw $t0,scoreHund
+	bne $t0,5,checkSevenFifty
+	lw $t0,scoreTens
+	bne $t0,0,checkSevenFifty
+	lw $t0,scoreOnes
+	bne $t0,0,checkSevenFifty
+	# the score is 500
+	jal new_notif
+	j DRAW_STUFF
+checkSevenFifty:	lw $t0,scoreHund
+	bne $t0,7,DRAW_STUFF
+	lw $t0,scoreTens
+	bne $t0,5,DRAW_STUFF
+	lw $t0,scoreOnes
+	bne $t0,0,DRAW_STUFF
+	# the score is 750
+	jal new_notif
+	j DRAW_STUFF
+	
 DRAW_STUFF:
-	la $t0,normPlat_xy
+	# first, decrement notif_count if it's above 0
+	lw $t0,notif_count
+	bgt $t0,0,decNotifCount
+	j checkNotifPurp
+decNotifCount:	add $t0,$t0,-1
+		la $t1,notif_count
+		sw $t0,0($t1)
+checkNotifPurp:	lw $t0,notif_count
+	bgt $t0,0,drawNotifPurple
+	j noNotifDraw
+drawNotifPurple:	lw $a0,purple
+		jal draw_curr_notif
+noNotifDraw:	la $t0,normPlat_xy
 	lw $a0,0($t0)
 	lw $a1,4($t0)
 	lw $a2,green
@@ -512,7 +616,14 @@ draw_spring:
 		jr $ra 
 
 # Behaviour: Converts (x,y) into hexadecimal, given a base address (buffer or bitmap)
-convXY_func:		add $t0,$zero,$a2	#a0 = x-value
+convXY_func:		# push $t0,$t1,$t2 on stack
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		addi $sp,$sp,-4
+		sw $t1,0($sp)
+		addi $sp,$sp,-4
+		sw $t2,0($sp)
+		add $t0,$zero,$a2	#a0 = x-value
 		add $t1,$zero,$zero	#a1 = y-value
 		add $t2, $zero,$zero	#a2 = address
 CONVXL_BEGIN:	beq $t1,$a0,CONVXL_END	
@@ -524,7 +635,15 @@ CONVXL_END:		beq $t2, $a1,CONVYL_END
 		addi $t2, $t2,1
 		j CONVXL_END
 CONVYL_END:		add $v0,$zero,$t0	#return $v0 = hex address
+		# pull $t2, $t1, $t0 off stack
+		lw $t2,0($sp)
+		addi $sp,$sp,4
+		lw $t1,0($sp)
+		addi $sp,$sp,4
+		lw $t0,0($sp)
+		addi $sp,$sp,4
 		jr $ra
+
 # Behaviour: convert hexadecimal to xy coordinates
 # $a0 = hex
 # $a1 = base hex address (bitmap or buffer)	
@@ -1467,3 +1586,272 @@ pullStackCheckRocket: 	# pull $t3, $t2, $t1, $t0, $ra from stack
 		lw $ra,0($sp)
 		addi $sp,$sp,4
 		jr $ra
+
+#Behaviour: draw the word Pog
+# $a0 = color
+draw_poggers:	# push $ra, $t0,$t1,$t2,$t3 onto stack
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		addi $sp,$sp,-4
+		sw $t1,0($sp)
+		addi $sp,$sp,-4
+		sw $t2,0($sp)
+		addi $sp,$sp,-4
+		sw $t3,0($sp)
+		
+		add $t0,$zero,$zero
+		addi $t1,$zero,40
+		add $t2,$a0,$zero
+		la $t3,poggersPos
+drawPogLB:		beq $t0,$t1,drawPogLE
+		lw $a0,0($t3)
+		lw $a1,4($t3)
+		lw $a2,bufferAddress
+		jal convXY_func
+		sw $t2,0($v0)
+		addi $t3,$t3,8
+		addi $t0,$t0,1
+		j drawPogLB
+		# pull $t3,$t2,$t1,$t0,$ra off stack
+drawPogLE:		lw $t3,0($sp)
+		addi $sp,$sp,4
+		lw $t2,0($sp)
+		addi $sp,$sp,4
+		lw $t1,0($sp)
+		addi $sp,$sp,4
+		lw $t0,0($sp)
+		addi $sp,$sp,4
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draws "EPIC!"
+# $a0 = colour
+draw_epic:		# push $ra, $t0,$t1,$t2,$t3,$t4 onto stack
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		addi $sp,$sp,-4
+		sw $t1,0($sp)
+		addi $sp,$sp,-4
+		sw $t2,0($sp)
+		addi $sp,$sp,-4
+		sw $t3,0($sp)
+		
+		add $t0,$zero,$zero
+		addi $t1,$zero,39
+		add $t2,$zero,$a0
+		la $t3,epicPos
+drawEpicLB:		beq $t0,$t1,drawEpicLE
+		lw $a0,0($t3)
+		lw $a1,4($t3)
+		lw $a2,bufferAddress
+		jal convXY_func
+		sw $t2,0($v0)
+		addi $t3,$t3,8
+		addi $t0,$t0,1
+		j drawEpicLB
+		# pull $t3,$t2,$t1,$t0,$ra off stack
+drawEpicLE:		lw $t3,0($sp)
+		addi $sp,$sp,4
+		lw $t2,0($sp)
+		addi $sp,$sp,4
+		lw $t1,0($sp)
+		addi $sp,$sp,4
+		lw $t0,0($sp)
+		addi $sp,$sp,4
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draws the word "COOL!"
+# $a0 = colour
+draw_cool:		# push $ra, $t0,$t1,$t2,$t3,$t4 onto stack
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		addi $sp,$sp,-4
+		sw $t1,0($sp)
+		addi $sp,$sp,-4
+		sw $t2,0($sp)
+		addi $sp,$sp,-4
+		sw $t3,0($sp)
+		
+		add $t0,$zero,$zero
+		addi $t1,$zero,44
+		add $t2,$zero,$a0
+		la $t3,coolPos
+drawCoolLB:		beq $t0,$t1,drawCoolLE
+		lw $a0,0($t3)
+		lw $a1,4($t3)
+		lw $a2,bufferAddress
+		jal convXY_func
+		sw $t2,0($v0)
+		addi $t3,$t3,8
+		addi $t0,$t0,1
+		j drawCoolLB
+		# pull $t3,$t2,$t1,$t0,$ra off stack
+drawCoolLE:		lw $t3,0($sp)
+		addi $sp,$sp,4
+		lw $t2,0($sp)
+		addi $sp,$sp,4
+		lw $t1,0($sp)
+		addi $sp,$sp,4
+		lw $t0,0($sp)
+		addi $sp,$sp,4
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draws the word "NICE!"
+# $a0 = colour
+draw_nice:		# push $ra, $t0,$t1,$t2,$t3,$t4 onto stack
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		addi $sp,$sp,-4
+		sw $t1,0($sp)
+		addi $sp,$sp,-4
+		sw $t2,0($sp)
+		addi $sp,$sp,-4
+		sw $t3,0($sp)
+		
+		add $t0,$zero,$zero
+		addi $t1,$zero,41
+		add $t2,$zero,$a0
+		la $t3,nicePos
+drawNiceLB:		beq $t0,$t1,drawNiceLE
+		lw $a0,0($t3)
+		lw $a1,4($t3)
+		lw $a2,bufferAddress
+		jal convXY_func
+		sw $t2,0($v0)
+		addi $t3,$t3,8
+		addi $t0,$t0,1
+		j drawNiceLB
+		# pull $t3,$t2,$t1,$t0,$ra off stack
+drawNiceLE:		lw $t3,0($sp)
+		addi $sp,$sp,4
+		lw $t2,0($sp)
+		addi $sp,$sp,4
+		lw $t1,0($sp)
+		addi $sp,$sp,4
+		lw $t0,0($sp)
+		addi $sp,$sp,4
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: draws the word "GOOD!"
+# $a0 = colour
+draw_good:		# push $ra, $t0,$t1,$t2,$t3,$t4 onto stack
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		addi $sp,$sp,-4
+		sw $t1,0($sp)
+		addi $sp,$sp,-4
+		sw $t2,0($sp)
+		addi $sp,$sp,-4
+		sw $t3,0($sp)
+		
+		add $t0,$zero,$zero
+		addi $t1,$zero,52
+		add $t2,$zero,$a0
+		la $t3,goodPos
+drawGoodLB:		beq $t0,$t1,drawGoodLE
+		lw $a0,0($t3)
+		lw $a1,4($t3)
+		lw $a2,bufferAddress
+		jal convXY_func
+		sw $t2,0($v0)
+		addi $t3,$t3,8
+		addi $t0,$t0,1
+		j drawGoodLB
+		# pull $t3,$t2,$t1,$t0,$ra off stack
+drawGoodLE:		lw $t3,0($sp)
+		addi $sp,$sp,4
+		lw $t2,0($sp)
+		addi $sp,$sp,4
+		lw $t1,0($sp)
+		addi $sp,$sp,4
+		lw $t0,0($sp)
+		addi $sp,$sp,4
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+
+# Behaviour: draw current notification
+# $a0 = colour
+draw_curr_notif:	# push $ra,$t0 on stack
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		
+		lw $t0,curr_notif
+		beq $t0,0,drawPog
+		beq $t0,1,drawEpic
+		beq $t0,2,drawCool
+		beq $t0,3,drawNice
+		beq $t0,4,drawGood
+		j drawCurrNotifEnd
+drawPog:		jal draw_poggers
+		j drawCurrNotifEnd
+drawEpic:		jal draw_epic
+		j drawCurrNotifEnd
+drawCool:		jal draw_cool
+		j drawCurrNotifEnd
+drawNice:		jal draw_nice
+		j drawCurrNotifEnd
+drawGood:		jal draw_good
+		j drawCurrNotifEnd
+drawCurrNotifEnd:	# pull $t0,$ra from stack
+		lw $t0,0($sp)
+		addi $sp,$sp,4
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
+# Behaviour: create a new notification
+new_notif:		# push $ra, $t0, $t1, $a0, $a1 to stack
+		addi $sp,$sp,-4
+		sw $ra,0($sp)
+		addi $sp,$sp,-4
+		sw $t0,0($sp)
+		addi $sp,$sp,-4
+		sw $t1,0($sp)
+		addi $sp,$sp,-4
+		sw $a0,0($sp)
+		addi $sp,$sp,-4
+		sw $a1,0($sp)
+		
+		la $t0,curr_notif
+		li $v0,42
+		li $a0,0
+		li $a1,4
+		syscall
+		sw $a0,0($t0)
+		la $t0,notif_count
+		li $t1,35
+		sw $t1,0($t0)
+		
+		# pull $a1, $a0, $t1, $t0, $ra
+		lw $a1,0($sp)
+		addi $sp,$sp,4
+		lw $a0,0($sp)
+		addi $sp,$sp,4
+		lw $t1,0($sp)
+		addi $sp,$sp,4
+		lw $t0,0($sp)
+		addi $sp,$sp,4
+		lw $ra,0($sp)
+		addi $sp,$sp,4
+		jr $ra
+		
