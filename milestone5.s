@@ -689,11 +689,11 @@ PlatToTop:		# $t0 = address of y-value of curr platform
 		li $a0,0
 		li $a1,10
 		syscall
-		beq $a0,50,setSpringExists
+		beq $a0,0,setSpringExists
 		# There is a 5% chance of a rocket on the next platform
 		li $v0,42
 		li $a0,0
-		li $a1,3
+		li $a1,20
 		syscall
 		beq $a0,0,setRocketExists
 		j incPlatLabs
