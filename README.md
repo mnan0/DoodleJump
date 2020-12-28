@@ -1,6 +1,6 @@
 # Doodle Jump!
 
-This is a version of the Doodle Jump game using MIPS Assembly. It was made for the final assessment of CSC258 at the University of Toronto and received a perfect score.
+This is a version of the Doodle Jump game using MIPS Assembly. It was made for the final assessment of CSC258 (an introductory hardware course for CS students) at the University of Toronto and received a perfect score.
 
 **Setup:**
 
